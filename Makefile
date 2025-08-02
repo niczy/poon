@@ -9,17 +9,24 @@ all: proto build test
 help:
 	@echo "Poon Monorepo System Build Commands"
 	@echo "=================================="
-	@echo "make all      - Build everything (proto + build + test)"
-	@echo "make build    - Build all components"
-	@echo "make test     - Run all tests"
-	@echo "make proto    - Generate protobuf files"
-	@echo "make install  - Install all dependencies"
-	@echo "make clean    - Clean build artifacts"
-	@echo "make start    - Start all services in background"
-	@echo "make stop     - Stop all services"
-	@echo "make help     - Show this help message"
+	@echo "make all              - Build everything (proto + build + test)"
+	@echo "make build            - Build all components"
+	@echo "make test             - Run all tests"
+	@echo "make proto            - Generate protobuf files"
+	@echo "make install          - Install all dependencies"
+	@echo "make install-protoc-tools - Ensure protoc tools are installed"
+	@echo "make clean            - Clean build artifacts"
+	@echo "make start            - Start all services in background"
+	@echo "make stop             - Stop all services"
+	@echo ""
+	@echo "CI/CD targets:"
+	@echo "make ci-setup         - Set up CI environment"
+	@echo "make ci-build         - Build for CI"
+	@echo "make ci-test          - Run tests in CI"
+	@echo ""
+	@echo "make help             - Show this help message"
 
-# Install dependencies
+# Install dependencies and ensure tools are available
 install:
 	@echo "Installing Go protobuf plugins..."
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -29,15 +36,29 @@ install:
 	cd poon-proto && npm install
 	cd poon-web && npm install
 
+# Ensure protoc tools are installed and available
+.PHONY: install-protoc-tools
+install-protoc-tools:
+	@echo "Ensuring protoc-gen-go tools are installed..."
+	@which protoc-gen-go >/dev/null 2>&1 || { \
+		echo "Installing protoc-gen-go..."; \
+		go install google.golang.org/protobuf/cmd/protoc-gen-go@latest; \
+	}
+	@which protoc-gen-go-grpc >/dev/null 2>&1 || { \
+		echo "Installing protoc-gen-go-grpc..."; \
+		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest; \
+	}
+	@echo "Protoc tools are ready"
+
 # Generate protobuf files
-proto:
+proto: install-protoc-tools
 	@echo "Generating protobuf files..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
 	cd poon-proto && \
 	mkdir -p gen/go gen/js gen/python gen/ts && \
-	protoc --go_out=gen --go_opt=paths=source_relative \
-	       --go-grpc_out=gen --go-grpc_opt=paths=source_relative \
-	       --proto_path=. monorepo.proto && \
-	mv gen/monorepo*.pb.go gen/go/ 2>/dev/null || true
+	protoc --go_out=gen/go --go_opt=paths=source_relative \
+	       --go-grpc_out=gen/go --go-grpc_opt=paths=source_relative \
+	       --proto_path=. monorepo.proto
 
 # Build all components
 build: proto
@@ -50,14 +71,15 @@ build: proto
 	cd poon-web && npm run build
 
 # Run all tests
-test:
+test: install-protoc-tools
 	@echo "Running tests for all components..."
-	cd poon-git && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
-	cd poon-server && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
-	cd poon-cli && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
-	cd poon-proto && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
-	cd poon-web && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
-	cd poon-tests && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-git && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
+	cd ../poon-server && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
+	cd ../poon-cli && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
+	cd ../poon-proto && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
+	cd ../poon-web && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
+	cd ../poon-tests && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
 
 # Clean build artifacts
 clean:
@@ -109,6 +131,28 @@ format:
 	
 	@echo "Formatting TypeScript code..."
 	cd poon-web && npm run lint --fix || true
+
+# CI/CD targets
+.PHONY: ci-setup ci-test ci-build
+ci-setup:
+	@echo "Setting up CI environment..."
+	@echo "Installing protoc tools..."
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@echo "Installing Node.js dependencies..."
+	cd poon-proto && npm ci
+	cd poon-web && npm ci
+	@echo "CI setup complete"
+
+ci-build: ci-setup
+	@echo "Building for CI..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	make proto && make build
+
+ci-test: ci-setup
+	@echo "Running tests in CI..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	make test
 
 # Development shortcuts
 server: proto
