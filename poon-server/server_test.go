@@ -131,63 +131,6 @@ func TestServerResilience(t *testing.T) {
 	})
 }
 
-// Test helpers
-
-func createTestRepo(t *testing.T) string {
-	repoRoot := t.TempDir()
-
-	// Create directory structure
-	dirs := []string{
-		"src/frontend",
-		"src/backend",
-		"docs",
-		"config",
-	}
-
-	for _, dir := range dirs {
-		require.NoError(t, os.MkdirAll(filepath.Join(repoRoot, dir), 0755))
-	}
-
-	// Create sample files
-	files := map[string]string{
-		"src/frontend/app.js": `// Sample frontend application
-console.log("Hello from frontend");`,
-
-		"src/backend/server.go": `package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello from backend")
-}`,
-
-		"docs/README.md": `# Poon Monorepo Documentation
-
-This is a sample monorepo for testing.
-
-## Structure
-
-- src/frontend/ - Frontend application
-- src/backend/ - Backend service  
-- docs/ - Documentation
-- config/ - Configuration files`,
-
-		"config/app.yaml": `environment: test
-services:
-  frontend:
-    port: 3000
-  backend:
-    port: 8080`,
-	}
-
-	for path, content := range files {
-		fullPath := filepath.Join(repoRoot, path)
-		require.NoError(t, os.WriteFile(fullPath, []byte(content), 0644))
-	}
-
-	return repoRoot
-}
-
 func TestReadFileEndpoint(t *testing.T) {
 	repoRoot := createTestRepo(t)
 	srv := &server{
@@ -636,4 +579,186 @@ func TestPathValidation(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestMergePatchEndpoint(t *testing.T) {
+	repoRoot := createTestRepo(t)
+	srv := &server{
+		repoRoot: repoRoot,
+	}
+
+	t.Run("Empty Patch Data", func(t *testing.T) {
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte{},
+			Message: "Test patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Patch data is empty")
+	})
+
+	t.Run("Invalid Path", func(t *testing.T) {
+		req := &pb.MergePatchRequest{
+			Path:    "../../../etc/passwd",
+			Patch:   []byte("--- a/test.txt\n+++ b/test.txt\n@@ -1,1 +1,1 @@\n-old\n+new\n"),
+			Message: "Test patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Invalid path")
+	})
+
+	t.Run("Invalid Patch Format", func(t *testing.T) {
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte("not a valid patch"),
+			Message: "Test patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Failed to parse patch")
+	})
+
+	t.Run("Apply Simple Patch to Existing File", func(t *testing.T) {
+		patch := `--- a/docs/README.md
++++ b/docs/README.md
+@@ -1,4 +1,5 @@
+ # Poon Monorepo Documentation
+ 
++This line was added by patch.
+ This is a sample monorepo for testing.
+ 
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte(patch),
+			Message: "Add line to README",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+		assert.Contains(t, resp.Message, "successfully")
+		assert.NotEmpty(t, resp.CommitHash)
+
+		content, err := os.ReadFile(filepath.Join(repoRoot, "docs/README.md"))
+		require.NoError(t, err)
+		assert.Contains(t, string(content), "This line was added by patch.")
+	})
+
+	t.Run("Apply Patch to Create New File", func(t *testing.T) {
+		patch := `--- /dev/null
++++ b/docs/NEW_FILE.md
+@@ -0,0 +1,3 @@
++# New File
++
++This file was created by a patch.
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "docs/NEW_FILE.md",
+			Patch:   []byte(patch),
+			Message: "Create new file",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+		assert.Contains(t, resp.Message, "successfully")
+
+		content, err := os.ReadFile(filepath.Join(repoRoot, "docs/NEW_FILE.md"))
+		require.NoError(t, err)
+		assert.Contains(t, string(content), "This file was created by a patch.")
+	})
+
+	t.Run("Invalid Target File in Patch", func(t *testing.T) {
+		patch := `--- a/docs/README.md
++++ b/../../../etc/passwd
+@@ -1,1 +1,1 @@
+-old
++new
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte(patch),
+			Message: "Malicious patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Invalid target file in patch")
+	})
+}
+
+// Test helpers
+
+func createTestRepo(t *testing.T) string {
+	repoRoot := t.TempDir()
+
+	// Create directory structure
+	dirs := []string{
+		"src/frontend",
+		"src/backend",
+		"docs",
+		"config",
+	}
+
+	for _, dir := range dirs {
+		require.NoError(t, os.MkdirAll(filepath.Join(repoRoot, dir), 0755))
+	}
+
+	// Create sample files
+	files := map[string]string{
+		"src/frontend/app.js": `// Sample frontend application
+console.log("Hello from frontend");`,
+
+		"src/backend/server.go": `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello from backend")
+}`,
+
+		"docs/README.md": `# Poon Monorepo Documentation
+
+This is a sample monorepo for testing.
+
+## Structure
+
+- src/frontend/ - Frontend application
+- src/backend/ - Backend service  
+- docs/ - Documentation
+- config/ - Configuration files`,
+
+		"config/app.yaml": `environment: test
+services:
+  frontend:
+    port: 3000
+  backend:
+    port: 8080`,
+	}
+
+	for path, content := range files {
+		fullPath := filepath.Join(repoRoot, path)
+		require.NoError(t, os.WriteFile(fullPath, []byte(content), 0644))
+	}
+
+	return repoRoot
 }

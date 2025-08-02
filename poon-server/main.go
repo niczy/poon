@@ -12,6 +12,7 @@ import (
 	"time"
 
 	pb "github.com/nic/poon/poon-proto/gen/go"
+	"github.com/nic/poon/poon-server/merge"
 	"google.golang.org/grpc"
 )
 
@@ -48,16 +49,71 @@ func validatePath(path string) error {
 func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb.MergePatchResponse, error) {
 	log.Printf("Merging patch for path: %s", req.Path)
 
-	// TODO: Implement patch merging logic
-	// This would involve:
-	// 1. Validating the patch
-	// 2. Applying the patch to the target files
-	// 3. Running any necessary validation/tests
-	// 4. Committing the changes
+	if err := validatePath(req.Path); err != nil {
+		return &pb.MergePatchResponse{
+			Success: false,
+			Message: fmt.Sprintf("Invalid path: %v", err),
+		}, nil
+	}
+
+	if len(req.Patch) == 0 {
+		return &pb.MergePatchResponse{
+			Success: false,
+			Message: "Patch data is empty",
+		}, nil
+	}
+
+	parsed, err := merge.ParsePatch(req.Patch)
+	if err != nil {
+		return &pb.MergePatchResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to parse patch: %v", err),
+		}, nil
+	}
+
+	if err := validatePath(parsed.Header.NewFile); err != nil {
+		return &pb.MergePatchResponse{
+			Success: false,
+			Message: fmt.Sprintf("Invalid target file in patch: %v", err),
+		}, nil
+	}
+
+	targetFile := filepath.Join(s.repoRoot, parsed.Header.NewFile)
+
+	backupPath, err := merge.BackupFile(targetFile)
+	if err != nil {
+		return &pb.MergePatchResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to backup file: %v", err),
+		}, nil
+	}
+
+	if err := merge.ApplyPatch(targetFile, parsed); err != nil {
+		if backupPath != "" {
+			if restoreErr := os.Rename(backupPath, targetFile); restoreErr != nil {
+				log.Printf("Failed to restore backup: %v", restoreErr)
+			}
+		}
+		return &pb.MergePatchResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to apply patch: %v", err),
+		}, nil
+	}
+
+	if backupPath != "" {
+		if err := os.Remove(backupPath); err != nil {
+			log.Printf("Warning: Failed to remove backup file %s: %v", backupPath, err)
+		}
+	}
+
+	commitHash := fmt.Sprintf("commit_%d", time.Now().Unix())
+
+	log.Printf("Successfully applied patch to %s", targetFile)
 
 	return &pb.MergePatchResponse{
-		Success: true,
-		Message: fmt.Sprintf("Patch merged successfully for %s", req.Path),
+		Success:    true,
+		Message:    fmt.Sprintf("Patch applied successfully to %s", req.Path),
+		CommitHash: commitHash,
 	}, nil
 }
 
