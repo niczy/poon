@@ -637,3 +637,280 @@ func TestPathValidation(t *testing.T) {
 		}
 	})
 }
+
+func TestMergePatchEndpoint(t *testing.T) {
+	repoRoot := createTestRepo(t)
+	srv := &server{
+		repoRoot: repoRoot,
+	}
+
+	t.Run("Empty Patch Data", func(t *testing.T) {
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte{},
+			Message: "Test patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Patch data is empty")
+	})
+
+	t.Run("Invalid Path", func(t *testing.T) {
+		req := &pb.MergePatchRequest{
+			Path:    "../../../etc/passwd",
+			Patch:   []byte("--- a/test.txt\n+++ b/test.txt\n@@ -1,1 +1,1 @@\n-old\n+new\n"),
+			Message: "Test patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Invalid path")
+	})
+
+	t.Run("Invalid Patch Format", func(t *testing.T) {
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte("not a valid patch"),
+			Message: "Test patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Failed to parse patch")
+	})
+
+	t.Run("Apply Simple Patch to Existing File", func(t *testing.T) {
+		patch := `--- a/docs/README.md
++++ b/docs/README.md
+@@ -1,4 +1,5 @@
+ # Poon Monorepo Documentation
+ 
++This line was added by patch.
+ This is a sample monorepo for testing.
+ 
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte(patch),
+			Message: "Add line to README",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+		assert.Contains(t, resp.Message, "successfully")
+		assert.NotEmpty(t, resp.CommitHash)
+
+		content, err := os.ReadFile(filepath.Join(repoRoot, "docs/README.md"))
+		require.NoError(t, err)
+		assert.Contains(t, string(content), "This line was added by patch.")
+	})
+
+	t.Run("Apply Patch to Create New File", func(t *testing.T) {
+		patch := `--- /dev/null
++++ b/docs/NEW_FILE.md
+@@ -0,0 +1,3 @@
++# New File
++
++This file was created by a patch.
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "docs/NEW_FILE.md",
+			Patch:   []byte(patch),
+			Message: "Create new file",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+		assert.Contains(t, resp.Message, "successfully")
+
+		content, err := os.ReadFile(filepath.Join(repoRoot, "docs/NEW_FILE.md"))
+		require.NoError(t, err)
+		assert.Contains(t, string(content), "This file was created by a patch.")
+	})
+
+	t.Run("Apply Multi-hunk Patch", func(t *testing.T) {
+		patch := `--- a/config/app.yaml
++++ b/config/app.yaml
+@@ -1,2 +1,3 @@
+ environment: test
++version: 1.0
+ services:
+@@ -4,2 +5,3 @@
+   backend:
+     port: 8080
++    timeout: 30s
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "config/app.yaml",
+			Patch:   []byte(patch),
+			Message: "Update config with version and timeout",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+
+		content, err := os.ReadFile(filepath.Join(repoRoot, "config/app.yaml"))
+		require.NoError(t, err)
+		contentStr := string(content)
+		assert.Contains(t, contentStr, "version: 1.0")
+		assert.Contains(t, contentStr, "timeout: 30s")
+	})
+
+	t.Run("Invalid Target File in Patch", func(t *testing.T) {
+		patch := `--- a/docs/README.md
++++ b/../../../etc/passwd
+@@ -1,1 +1,1 @@
+-old
++new
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "docs/README.md",
+			Patch:   []byte(patch),
+			Message: "Malicious patch",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Message, "Invalid target file in patch")
+	})
+
+	t.Run("Patch with Deletion Lines", func(t *testing.T) {
+		patch := `--- a/src/frontend/app.js
++++ b/src/frontend/app.js
+@@ -1,2 +1,3 @@
+-// Sample frontend application
+-console.log("Hello from frontend");
++// Updated frontend application
++console.log("Hello from updated frontend");
++console.log("Additional logging");
+`
+
+		req := &pb.MergePatchRequest{
+			Path:    "src/frontend/app.js",
+			Patch:   []byte(patch),
+			Message: "Update frontend app",
+			Author:  "test@example.com",
+		}
+
+		resp, err := srv.MergePatch(context.Background(), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+
+		content, err := os.ReadFile(filepath.Join(repoRoot, "src/frontend/app.js"))
+		require.NoError(t, err)
+		contentStr := string(content)
+		assert.Contains(t, contentStr, "Updated frontend application")
+		assert.Contains(t, contentStr, "Additional logging")
+		assert.NotContains(t, contentStr, "Sample frontend application")
+	})
+}
+
+func TestPatchParsing(t *testing.T) {
+	t.Run("Valid Simple Patch", func(t *testing.T) {
+		patchData := `--- a/test.txt
++++ b/test.txt
+@@ -1,3 +1,3 @@
+ line 1
+-line 2
++modified line 2
+ line 3
+`
+
+		patch, err := parsePatch([]byte(patchData))
+		require.NoError(t, err)
+		assert.Equal(t, "test.txt", patch.Header.OldFile)
+		assert.Equal(t, "test.txt", patch.Header.NewFile)
+		assert.Len(t, patch.Hunks, 1)
+		
+		hunk := patch.Hunks[0]
+		assert.Equal(t, 1, hunk.OldStart)
+		assert.Equal(t, 3, hunk.OldCount)
+		assert.Equal(t, 1, hunk.NewStart)
+		assert.Equal(t, 3, hunk.NewCount)
+		assert.Len(t, hunk.Lines, 4)
+	})
+
+	t.Run("Invalid Patch Format", func(t *testing.T) {
+		patchData := `not a valid patch`
+
+		_, err := parsePatch([]byte(patchData))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "does not contain valid unified diff headers")
+	})
+
+	t.Run("Empty Patch", func(t *testing.T) {
+		_, err := parsePatch([]byte{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "patch data is empty")
+	})
+
+	t.Run("Multi-hunk Patch", func(t *testing.T) {
+		patchData := `--- a/test.txt
++++ b/test.txt
+@@ -1,2 +1,3 @@
+ line 1
++new line
+ line 2
+@@ -10,1 +11,2 @@
+ line 10
++another new line
+`
+
+		patch, err := parsePatch([]byte(patchData))
+		require.NoError(t, err)
+		assert.Len(t, patch.Hunks, 2)
+		
+		assert.Equal(t, 1, patch.Hunks[0].OldStart)
+		assert.Equal(t, 10, patch.Hunks[1].OldStart)
+	})
+}
+
+func TestPatchValidation(t *testing.T) {
+	t.Run("Valid Patch", func(t *testing.T) {
+		patchData := `--- a/test.txt
++++ b/test.txt
+@@ -1,1 +1,1 @@
+-old
++new
+`
+		err := validatePatch([]byte(patchData))
+		assert.NoError(t, err)
+	})
+
+	t.Run("Missing Headers", func(t *testing.T) {
+		patchData := `@@ -1,1 +1,1 @@
+-old
++new
+`
+		err := validatePatch([]byte(patchData))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "patch has hunk without proper file headers")
+	})
+
+	t.Run("No Hunks", func(t *testing.T) {
+		patchData := `--- a/test.txt
++++ b/test.txt
+`
+		err := validatePatch([]byte(patchData))
+		assert.NoError(t, err) // Valid headers, no hunks is OK
+	})
+}
