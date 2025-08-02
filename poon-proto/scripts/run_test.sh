@@ -36,6 +36,9 @@ fi
 # Test protocol buffer generation
 echo "🔨 Testing protobuf generation..."
 if command -v protoc >/dev/null 2>&1; then
+    # Add Go bin to PATH for protoc plugins
+    export PATH="$PATH:$HOME/go/bin"
+    
     # Clean and regenerate
     npm run clean || true
     
@@ -63,18 +66,13 @@ fi
 # Verify generated files exist
 echo "📋 Verifying generated files..."
 EXPECTED_FILES=(
-    "gen/monorepo.pb.go"
+    "gen/go/monorepo.pb.go"
+    "gen/go/monorepo_grpc.pb.go"
 )
 
 for file in "${EXPECTED_FILES[@]}"; do
     if [ -f "$file" ]; then
         echo "✅ $file exists"
-        # Move to go subdirectory if not already there
-        if [ ! -f "gen/go/$(basename $file)" ]; then
-            mkdir -p gen/go
-            mv "$file" "gen/go/"
-            echo "✅ Moved $file to gen/go/"
-        fi
     else
         echo "❌ $file missing"
         exit 1

@@ -4,7 +4,7 @@
 // - protoc             v5.27.3
 // source: monorepo.proto
 
-package gen
+package _go
 
 import (
 	context "context"
@@ -19,12 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MonorepoService_MergePatch_FullMethodName     = "/monorepo.MonorepoService/MergePatch"
-	MonorepoService_ReadDirectory_FullMethodName  = "/monorepo.MonorepoService/ReadDirectory"
-	MonorepoService_ReadFile_FullMethodName       = "/monorepo.MonorepoService/ReadFile"
-	MonorepoService_GetFileHistory_FullMethodName = "/monorepo.MonorepoService/GetFileHistory"
-	MonorepoService_GetBranches_FullMethodName    = "/monorepo.MonorepoService/GetBranches"
-	MonorepoService_CreateBranch_FullMethodName   = "/monorepo.MonorepoService/CreateBranch"
+	MonorepoService_MergePatch_FullMethodName              = "/monorepo.MonorepoService/MergePatch"
+	MonorepoService_ReadDirectory_FullMethodName           = "/monorepo.MonorepoService/ReadDirectory"
+	MonorepoService_ReadFile_FullMethodName                = "/monorepo.MonorepoService/ReadFile"
+	MonorepoService_GetFileHistory_FullMethodName          = "/monorepo.MonorepoService/GetFileHistory"
+	MonorepoService_GetBranches_FullMethodName             = "/monorepo.MonorepoService/GetBranches"
+	MonorepoService_CreateBranch_FullMethodName            = "/monorepo.MonorepoService/CreateBranch"
+	MonorepoService_CreateWorkspace_FullMethodName         = "/monorepo.MonorepoService/CreateWorkspace"
+	MonorepoService_GetWorkspace_FullMethodName            = "/monorepo.MonorepoService/GetWorkspace"
+	MonorepoService_UpdateWorkspace_FullMethodName         = "/monorepo.MonorepoService/UpdateWorkspace"
+	MonorepoService_DeleteWorkspace_FullMethodName         = "/monorepo.MonorepoService/DeleteWorkspace"
+	MonorepoService_ConfigureSparseCheckout_FullMethodName = "/monorepo.MonorepoService/ConfigureSparseCheckout"
+	MonorepoService_DownloadPath_FullMethodName            = "/monorepo.MonorepoService/DownloadPath"
 )
 
 // MonorepoServiceClient is the client API for MonorepoService service.
@@ -45,6 +51,15 @@ type MonorepoServiceClient interface {
 	GetBranches(ctx context.Context, in *BranchesRequest, opts ...grpc.CallOption) (*BranchesResponse, error)
 	// CreateBranch creates a new branch
 	CreateBranch(ctx context.Context, in *CreateBranchRequest, opts ...grpc.CallOption) (*CreateBranchResponse, error)
+	// Workspace operations
+	CreateWorkspace(ctx context.Context, in *CreateWorkspaceRequest, opts ...grpc.CallOption) (*CreateWorkspaceResponse, error)
+	GetWorkspace(ctx context.Context, in *GetWorkspaceRequest, opts ...grpc.CallOption) (*GetWorkspaceResponse, error)
+	UpdateWorkspace(ctx context.Context, in *UpdateWorkspaceRequest, opts ...grpc.CallOption) (*UpdateWorkspaceResponse, error)
+	DeleteWorkspace(ctx context.Context, in *DeleteWorkspaceRequest, opts ...grpc.CallOption) (*DeleteWorkspaceResponse, error)
+	// Sparse checkout operations
+	ConfigureSparseCheckout(ctx context.Context, in *SparseCheckoutRequest, opts ...grpc.CallOption) (*SparseCheckoutResponse, error)
+	// Download operations
+	DownloadPath(ctx context.Context, in *DownloadPathRequest, opts ...grpc.CallOption) (*DownloadPathResponse, error)
 }
 
 type monorepoServiceClient struct {
@@ -115,6 +130,66 @@ func (c *monorepoServiceClient) CreateBranch(ctx context.Context, in *CreateBran
 	return out, nil
 }
 
+func (c *monorepoServiceClient) CreateWorkspace(ctx context.Context, in *CreateWorkspaceRequest, opts ...grpc.CallOption) (*CreateWorkspaceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWorkspaceResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_CreateWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *monorepoServiceClient) GetWorkspace(ctx context.Context, in *GetWorkspaceRequest, opts ...grpc.CallOption) (*GetWorkspaceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkspaceResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_GetWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *monorepoServiceClient) UpdateWorkspace(ctx context.Context, in *UpdateWorkspaceRequest, opts ...grpc.CallOption) (*UpdateWorkspaceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWorkspaceResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_UpdateWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *monorepoServiceClient) DeleteWorkspace(ctx context.Context, in *DeleteWorkspaceRequest, opts ...grpc.CallOption) (*DeleteWorkspaceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteWorkspaceResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_DeleteWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *monorepoServiceClient) ConfigureSparseCheckout(ctx context.Context, in *SparseCheckoutRequest, opts ...grpc.CallOption) (*SparseCheckoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SparseCheckoutResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_ConfigureSparseCheckout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *monorepoServiceClient) DownloadPath(ctx context.Context, in *DownloadPathRequest, opts ...grpc.CallOption) (*DownloadPathResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DownloadPathResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_DownloadPath_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MonorepoServiceServer is the server API for MonorepoService service.
 // All implementations must embed UnimplementedMonorepoServiceServer
 // for forward compatibility.
@@ -133,6 +208,15 @@ type MonorepoServiceServer interface {
 	GetBranches(context.Context, *BranchesRequest) (*BranchesResponse, error)
 	// CreateBranch creates a new branch
 	CreateBranch(context.Context, *CreateBranchRequest) (*CreateBranchResponse, error)
+	// Workspace operations
+	CreateWorkspace(context.Context, *CreateWorkspaceRequest) (*CreateWorkspaceResponse, error)
+	GetWorkspace(context.Context, *GetWorkspaceRequest) (*GetWorkspaceResponse, error)
+	UpdateWorkspace(context.Context, *UpdateWorkspaceRequest) (*UpdateWorkspaceResponse, error)
+	DeleteWorkspace(context.Context, *DeleteWorkspaceRequest) (*DeleteWorkspaceResponse, error)
+	// Sparse checkout operations
+	ConfigureSparseCheckout(context.Context, *SparseCheckoutRequest) (*SparseCheckoutResponse, error)
+	// Download operations
+	DownloadPath(context.Context, *DownloadPathRequest) (*DownloadPathResponse, error)
 	mustEmbedUnimplementedMonorepoServiceServer()
 }
 
@@ -160,6 +244,24 @@ func (UnimplementedMonorepoServiceServer) GetBranches(context.Context, *Branches
 }
 func (UnimplementedMonorepoServiceServer) CreateBranch(context.Context, *CreateBranchRequest) (*CreateBranchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBranch not implemented")
+}
+func (UnimplementedMonorepoServiceServer) CreateWorkspace(context.Context, *CreateWorkspaceRequest) (*CreateWorkspaceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWorkspace not implemented")
+}
+func (UnimplementedMonorepoServiceServer) GetWorkspace(context.Context, *GetWorkspaceRequest) (*GetWorkspaceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWorkspace not implemented")
+}
+func (UnimplementedMonorepoServiceServer) UpdateWorkspace(context.Context, *UpdateWorkspaceRequest) (*UpdateWorkspaceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateWorkspace not implemented")
+}
+func (UnimplementedMonorepoServiceServer) DeleteWorkspace(context.Context, *DeleteWorkspaceRequest) (*DeleteWorkspaceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteWorkspace not implemented")
+}
+func (UnimplementedMonorepoServiceServer) ConfigureSparseCheckout(context.Context, *SparseCheckoutRequest) (*SparseCheckoutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfigureSparseCheckout not implemented")
+}
+func (UnimplementedMonorepoServiceServer) DownloadPath(context.Context, *DownloadPathRequest) (*DownloadPathResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DownloadPath not implemented")
 }
 func (UnimplementedMonorepoServiceServer) mustEmbedUnimplementedMonorepoServiceServer() {}
 func (UnimplementedMonorepoServiceServer) testEmbeddedByValue()                         {}
@@ -290,6 +392,114 @@ func _MonorepoService_CreateBranch_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MonorepoService_CreateWorkspace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWorkspaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).CreateWorkspace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_CreateWorkspace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).CreateWorkspace(ctx, req.(*CreateWorkspaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MonorepoService_GetWorkspace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkspaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).GetWorkspace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_GetWorkspace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).GetWorkspace(ctx, req.(*GetWorkspaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MonorepoService_UpdateWorkspace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWorkspaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).UpdateWorkspace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_UpdateWorkspace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).UpdateWorkspace(ctx, req.(*UpdateWorkspaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MonorepoService_DeleteWorkspace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteWorkspaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).DeleteWorkspace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_DeleteWorkspace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).DeleteWorkspace(ctx, req.(*DeleteWorkspaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MonorepoService_ConfigureSparseCheckout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SparseCheckoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).ConfigureSparseCheckout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_ConfigureSparseCheckout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).ConfigureSparseCheckout(ctx, req.(*SparseCheckoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MonorepoService_DownloadPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DownloadPathRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).DownloadPath(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_DownloadPath_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).DownloadPath(ctx, req.(*DownloadPathRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MonorepoService_ServiceDesc is the grpc.ServiceDesc for MonorepoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -320,6 +530,30 @@ var MonorepoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateBranch",
 			Handler:    _MonorepoService_CreateBranch_Handler,
+		},
+		{
+			MethodName: "CreateWorkspace",
+			Handler:    _MonorepoService_CreateWorkspace_Handler,
+		},
+		{
+			MethodName: "GetWorkspace",
+			Handler:    _MonorepoService_GetWorkspace_Handler,
+		},
+		{
+			MethodName: "UpdateWorkspace",
+			Handler:    _MonorepoService_UpdateWorkspace_Handler,
+		},
+		{
+			MethodName: "DeleteWorkspace",
+			Handler:    _MonorepoService_DeleteWorkspace_Handler,
+		},
+		{
+			MethodName: "ConfigureSparseCheckout",
+			Handler:    _MonorepoService_ConfigureSparseCheckout_Handler,
+		},
+		{
+			MethodName: "DownloadPath",
+			Handler:    _MonorepoService_DownloadPath_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

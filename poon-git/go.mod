@@ -5,7 +5,6 @@ go 1.23.0
 toolchain go1.23.3
 
 require (
-	github.com/nic/poon v0.0.0
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.74.2
 )
