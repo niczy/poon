@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,19 @@ type Workspace struct {
 	Metadata     map[string]string
 }
 
+func validatePath(path string) error {
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("path traversal not allowed: path contains '..'")
+	}
+
+	cleanPath := filepath.Clean(path)
+	if strings.HasPrefix(cleanPath, "..") || strings.HasPrefix(cleanPath, "/") {
+		return fmt.Errorf("invalid path: path must be relative and within repository")
+	}
+
+	return nil
+}
+
 func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb.MergePatchResponse, error) {
 	log.Printf("Merging patch for path: %s", req.Path)
 
@@ -49,6 +63,10 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 
 func (s *server) ReadDirectory(ctx context.Context, req *pb.ReadDirectoryRequest) (*pb.ReadDirectoryResponse, error) {
 	log.Printf("Reading directory: %s", req.Path)
+
+	if err := validatePath(req.Path); err != nil {
+		return nil, fmt.Errorf("invalid path: %v", err)
+	}
 
 	fullPath := filepath.Join(s.repoRoot, req.Path)
 	entries, err := os.ReadDir(fullPath)
@@ -81,6 +99,10 @@ func (s *server) ReadDirectory(ctx context.Context, req *pb.ReadDirectoryRequest
 
 func (s *server) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {
 	log.Printf("Reading file: %s", req.Path)
+
+	if err := validatePath(req.Path); err != nil {
+		return nil, fmt.Errorf("invalid path: %v", err)
+	}
 
 	fullPath := filepath.Join(s.repoRoot, req.Path)
 	content, err := os.ReadFile(fullPath)
