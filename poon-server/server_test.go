@@ -625,7 +625,7 @@ func TestPathValidation(t *testing.T) {
 			t.Run(tc.description, func(t *testing.T) {
 				req := &pb.ReadFileRequest{Path: tc.path}
 				resp, err := srv.ReadFile(context.Background(), req)
-				
+
 				if tc.shouldError {
 					assert.Error(t, err)
 					assert.Nil(t, resp)

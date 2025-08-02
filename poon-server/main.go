@@ -36,12 +36,12 @@ func validatePath(path string) error {
 	if strings.Contains(path, "..") {
 		return fmt.Errorf("path traversal not allowed: path contains '..'")
 	}
-	
+
 	cleanPath := filepath.Clean(path)
 	if strings.HasPrefix(cleanPath, "..") || strings.HasPrefix(cleanPath, "/") {
 		return fmt.Errorf("invalid path: path must be relative and within repository")
 	}
-	
+
 	return nil
 }
 
