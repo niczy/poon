@@ -92,7 +92,7 @@ func runCommand(name string, args ...string) error {
 var rootCmd = &cobra.Command{
 	Use:   "poon",
 	Short: "Poon CLI - Internet-scale monorepo client",
-	Long:  `A CLI tool for interacting with the Poon monorepo system via gRPC.`,
+	Long:  `Poon CLI - A CLI tool for interacting with the Poon monorepo system via gRPC.`,
 }
 
 var startCmd = &cobra.Command{
@@ -172,6 +172,14 @@ var trackCmd = &cobra.Command{
 			return err
 		}
 
+		// Test server connectivity first
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err = client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to server: %v", err)
+		}
+
 		for _, path := range args {
 			fmt.Printf("Tracking %s...\n", path)
 
@@ -223,6 +231,15 @@ var pushCmd = &cobra.Command{
 			return err
 		}
 
+		// Test server connectivity by attempting to get branches
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err = client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to server: %v", err)
+		}
+
 		// TODO: Calculate diffs for each tracked path
 		// TODO: Generate patches
 		// TODO: Send patches to poon-server for merging
@@ -243,6 +260,15 @@ var syncCmd = &cobra.Command{
 
 		if err := connectToServer(); err != nil {
 			return err
+		}
+
+		// Test server connectivity by attempting to get branches
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err = client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to server: %v", err)
 		}
 
 		// TODO: Fetch latest state for tracked paths
