@@ -40,7 +40,7 @@ install:
 # Ensure protoc tools are installed and available
 .PHONY: install-protoc-tools
 install-protoc-tools:
-	@echo "Ensuring protoc-gen-go tools are installed..."
+	@echo "Ensuring protoc tools are installed..."
 	@which protoc-gen-go >/dev/null 2>&1 || { \
 		echo "Installing protoc-gen-go..."; \
 		go install google.golang.org/protobuf/cmd/protoc-gen-go@latest; \
@@ -49,17 +49,21 @@ install-protoc-tools:
 		echo "Installing protoc-gen-go-grpc..."; \
 		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest; \
 	}
+	@echo "Installing Node.js protoc tools via npm..."
+	@cd poon-proto && npm ci
 	@echo "Protoc tools are ready"
 
 # Generate protobuf files
 proto: install-protoc-tools
 	@echo "Generating protobuf files..."
-	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin:$$(npm bin)"; \
 	cd poon-proto && \
 	mkdir -p gen/go gen/js gen/python gen/ts && \
 	protoc --go_out=gen/go --go_opt=paths=source_relative \
 	       --go-grpc_out=gen/go --go-grpc_opt=paths=source_relative \
 	       --proto_path=. monorepo.proto && \
+	npm run proto:generate:js || echo "⚠️  JS generation skipped (tools may not be installed)" && \
+	npm run proto:generate:ts || echo "⚠️  TypeScript generation skipped (tools may not be installed)" && \
 	cd gen/go && \
 	if [ ! -f go.mod ]; then \
 		echo "module github.com/nic/poon/poon-proto/gen/go" > go.mod && \

@@ -134,6 +134,14 @@ var startCmd = &cobra.Command{
 			fmt.Printf("Warning: failed to create .gitignore: %v\n", err)
 		}
 
+		// Configure git identity (required for CI environments)
+		if err := runCommand("git", "config", "user.email", "poon@example.com"); err != nil {
+			return fmt.Errorf("failed to configure git user email: %v", err)
+		}
+		if err := runCommand("git", "config", "user.name", "Poon CI"); err != nil {
+			return fmt.Errorf("failed to configure git user name: %v", err)
+		}
+
 		// Initial commit
 		if err := runCommand("git", "add", ".gitignore"); err != nil {
 			return fmt.Errorf("failed to add .gitignore: %v", err)
