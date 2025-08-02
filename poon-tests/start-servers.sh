@@ -18,7 +18,7 @@ echo "📦 Proto files already generated..."
 mkdir -p logs
 
 # Set environment variables
-export REPO_ROOT="$(pwd)/test/monorepo"
+export REPO_ROOT="$(pwd)/monorepo"
 export PORT=50051
 export GRPC_SERVER="localhost:50051"
 
@@ -27,10 +27,10 @@ echo "📁 Repository root: $REPO_ROOT"
 # Start poon-server in background
 echo "🔧 Starting poon-server on port 50051..."
 cd ../poon-server
-go run . > ../test/logs/poon-server.log 2>&1 &
+go run . > ../poon-tests/logs/poon-server.log 2>&1 &
 POON_SERVER_PID=$!
 echo "poon-server PID: $POON_SERVER_PID"
-cd ../test
+cd ../poon-tests
 
 # Wait for poon-server to start
 sleep 3
@@ -38,10 +38,10 @@ sleep 3
 # Start poon-git server in background
 echo "🌐 Starting poon-git server on port 3000..."
 cd ../poon-git
-PORT=3000 GRPC_SERVER="localhost:50051" go run . > ../test/logs/poon-git.log 2>&1 &
+PORT=3000 GRPC_SERVER="localhost:50051" go run . > ../poon-tests/logs/poon-git.log 2>&1 &
 POON_GIT_PID=$!
 echo "poon-git PID: $POON_GIT_PID"
-cd ../test
+cd ../poon-tests
 
 # Wait for servers to start
 sleep 3
@@ -57,10 +57,10 @@ echo "$POON_GIT_PID" > poon-git.pid
 
 echo ""
 echo "🔍 Check server logs:"
-echo "  tail -f test/logs/poon-server.log"
-echo "  tail -f test/logs/poon-git.log"
+echo "  tail -f logs/poon-server.log"
+echo "  tail -f logs/poon-git.log"
 echo ""
-echo "🛑 To stop servers: ./test/stop-servers.sh"
+echo "🛑 To stop servers: ./stop-servers.sh"
 
 # Test server connectivity
 echo "🧪 Testing server connectivity..."
