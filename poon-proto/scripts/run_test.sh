@@ -38,17 +38,20 @@ echo "🔨 Testing protobuf generation..."
 if command -v protoc >/dev/null 2>&1; then
     # Ensure protoc-gen-go tools are installed
     echo "📦 Ensuring protoc-gen-go tools are available..."
-    if ! command -v protoc-gen-go >/dev/null 2>&1; then
-        echo "Installing protoc-gen-go..."
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-    fi
-    if ! command -v protoc-gen-go-grpc >/dev/null 2>&1; then
-        echo "Installing protoc-gen-go-grpc..."
-        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-    fi
+    
+    # Always install the tools to ensure they're available in CI
+    echo "Installing protoc-gen-go..."
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+    echo "Installing protoc-gen-go-grpc..."
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
     
     # Add Go bin directories to PATH for protoc plugins
     export PATH="$PATH:$(go env GOPATH)/bin:$HOME/go/bin"
+    
+    # Verify tools are available
+    echo "🔍 Verifying protoc plugins..."
+    which protoc-gen-go || { echo "❌ protoc-gen-go not found"; exit 1; }
+    which protoc-gen-go-grpc || { echo "❌ protoc-gen-go-grpc not found"; exit 1; }
     
     # Clean and regenerate
     npm run clean || true
