@@ -58,7 +58,19 @@ proto: install-protoc-tools
 	mkdir -p gen/go gen/js gen/python gen/ts && \
 	protoc --go_out=gen/go --go_opt=paths=source_relative \
 	       --go-grpc_out=gen/go --go-grpc_opt=paths=source_relative \
-	       --proto_path=. monorepo.proto
+	       --proto_path=. monorepo.proto && \
+	cd gen/go && \
+	if [ ! -f go.mod ]; then \
+		echo "module github.com/nic/poon/poon-proto/gen/go" > go.mod && \
+		echo "" >> go.mod && \
+		echo "go 1.23" >> go.mod && \
+		echo "" >> go.mod && \
+		echo "require (" >> go.mod && \
+		echo "	google.golang.org/grpc v1.74.2" >> go.mod && \
+		echo "	google.golang.org/protobuf v1.36.0" >> go.mod && \
+		echo ")" >> go.mod && \
+		go mod tidy; \
+	fi
 
 # Build all components
 build: proto
@@ -90,6 +102,7 @@ clean:
 	rm -f poon-cli/poon
 	rm -rf poon-web/.next
 	rm -rf poon-web/out
+	rm -rf poon-proto/gen
 	find . -name "*.test" -delete
 	find . -name "*.log" -delete
 	find . -name ".DS_Store" -delete
