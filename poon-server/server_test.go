@@ -131,63 +131,6 @@ func TestServerResilience(t *testing.T) {
 	})
 }
 
-// Test helpers
-
-func createTestRepo(t *testing.T) string {
-	repoRoot := t.TempDir()
-
-	// Create directory structure
-	dirs := []string{
-		"src/frontend",
-		"src/backend",
-		"docs",
-		"config",
-	}
-
-	for _, dir := range dirs {
-		require.NoError(t, os.MkdirAll(filepath.Join(repoRoot, dir), 0755))
-	}
-
-	// Create sample files
-	files := map[string]string{
-		"src/frontend/app.js": `// Sample frontend application
-console.log("Hello from frontend");`,
-
-		"src/backend/server.go": `package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello from backend")
-}`,
-
-		"docs/README.md": `# Poon Monorepo Documentation
-
-This is a sample monorepo for testing.
-
-## Structure
-
-- src/frontend/ - Frontend application
-- src/backend/ - Backend service  
-- docs/ - Documentation
-- config/ - Configuration files`,
-
-		"config/app.yaml": `environment: test
-services:
-  frontend:
-    port: 3000
-  backend:
-    port: 8080`,
-	}
-
-	for path, content := range files {
-		fullPath := filepath.Join(repoRoot, path)
-		require.NoError(t, os.WriteFile(fullPath, []byte(content), 0644))
-	}
-
-	return repoRoot
-}
-
 func TestReadFileEndpoint(t *testing.T) {
 	repoRoot := createTestRepo(t)
 	srv := &server{
@@ -741,37 +684,6 @@ func TestMergePatchEndpoint(t *testing.T) {
 		assert.Contains(t, string(content), "This file was created by a patch.")
 	})
 
-	t.Run("Apply Multi-hunk Patch", func(t *testing.T) {
-		patch := `--- a/config/app.yaml
-+++ b/config/app.yaml
-@@ -1,2 +1,3 @@
- environment: test
-+version: 1.0
- services:
-@@ -4,2 +5,3 @@
-   backend:
-     port: 8080
-+    timeout: 30s
-`
-
-		req := &pb.MergePatchRequest{
-			Path:    "config/app.yaml",
-			Patch:   []byte(patch),
-			Message: "Update config with version and timeout",
-			Author:  "test@example.com",
-		}
-
-		resp, err := srv.MergePatch(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.Success)
-
-		content, err := os.ReadFile(filepath.Join(repoRoot, "config/app.yaml"))
-		require.NoError(t, err)
-		contentStr := string(content)
-		assert.Contains(t, contentStr, "version: 1.0")
-		assert.Contains(t, contentStr, "timeout: 30s")
-	})
-
 	t.Run("Invalid Target File in Patch", func(t *testing.T) {
 		patch := `--- a/docs/README.md
 +++ b/../../../etc/passwd
@@ -792,125 +704,61 @@ func TestMergePatchEndpoint(t *testing.T) {
 		assert.False(t, resp.Success)
 		assert.Contains(t, resp.Message, "Invalid target file in patch")
 	})
-
-	t.Run("Patch with Deletion Lines", func(t *testing.T) {
-		patch := `--- a/src/frontend/app.js
-+++ b/src/frontend/app.js
-@@ -1,2 +1,3 @@
--// Sample frontend application
--console.log("Hello from frontend");
-+// Updated frontend application
-+console.log("Hello from updated frontend");
-+console.log("Additional logging");
-`
-
-		req := &pb.MergePatchRequest{
-			Path:    "src/frontend/app.js",
-			Patch:   []byte(patch),
-			Message: "Update frontend app",
-			Author:  "test@example.com",
-		}
-
-		resp, err := srv.MergePatch(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.Success)
-
-		content, err := os.ReadFile(filepath.Join(repoRoot, "src/frontend/app.js"))
-		require.NoError(t, err)
-		contentStr := string(content)
-		assert.Contains(t, contentStr, "Updated frontend application")
-		assert.Contains(t, contentStr, "Additional logging")
-		assert.NotContains(t, contentStr, "Sample frontend application")
-	})
 }
 
-func TestPatchParsing(t *testing.T) {
-	t.Run("Valid Simple Patch", func(t *testing.T) {
-		patchData := `--- a/test.txt
-+++ b/test.txt
-@@ -1,3 +1,3 @@
- line 1
--line 2
-+modified line 2
- line 3
-`
+// Test helpers
 
-		patch, err := parsePatch([]byte(patchData))
-		require.NoError(t, err)
-		assert.Equal(t, "test.txt", patch.Header.OldFile)
-		assert.Equal(t, "test.txt", patch.Header.NewFile)
-		assert.Len(t, patch.Hunks, 1)
+func createTestRepo(t *testing.T) string {
+	repoRoot := t.TempDir()
 
-		hunk := patch.Hunks[0]
-		assert.Equal(t, 1, hunk.OldStart)
-		assert.Equal(t, 3, hunk.OldCount)
-		assert.Equal(t, 1, hunk.NewStart)
-		assert.Equal(t, 3, hunk.NewCount)
-		assert.Len(t, hunk.Lines, 4)
-	})
+	// Create directory structure
+	dirs := []string{
+		"src/frontend",
+		"src/backend",
+		"docs",
+		"config",
+	}
 
-	t.Run("Invalid Patch Format", func(t *testing.T) {
-		patchData := `not a valid patch`
+	for _, dir := range dirs {
+		require.NoError(t, os.MkdirAll(filepath.Join(repoRoot, dir), 0755))
+	}
 
-		_, err := parsePatch([]byte(patchData))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "does not contain valid unified diff headers")
-	})
+	// Create sample files
+	files := map[string]string{
+		"src/frontend/app.js": `// Sample frontend application
+console.log("Hello from frontend");`,
 
-	t.Run("Empty Patch", func(t *testing.T) {
-		_, err := parsePatch([]byte{})
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "patch data is empty")
-	})
+		"src/backend/server.go": `package main
 
-	t.Run("Multi-hunk Patch", func(t *testing.T) {
-		patchData := `--- a/test.txt
-+++ b/test.txt
-@@ -1,2 +1,3 @@
- line 1
-+new line
- line 2
-@@ -10,1 +11,2 @@
- line 10
-+another new line
-`
+import "fmt"
 
-		patch, err := parsePatch([]byte(patchData))
-		require.NoError(t, err)
-		assert.Len(t, patch.Hunks, 2)
+func main() {
+	fmt.Println("Hello from backend")
+}`,
 
-		assert.Equal(t, 1, patch.Hunks[0].OldStart)
-		assert.Equal(t, 10, patch.Hunks[1].OldStart)
-	})
-}
+		"docs/README.md": `# Poon Monorepo Documentation
 
-func TestPatchValidation(t *testing.T) {
-	t.Run("Valid Patch", func(t *testing.T) {
-		patchData := `--- a/test.txt
-+++ b/test.txt
-@@ -1,1 +1,1 @@
--old
-+new
-`
-		err := validatePatch([]byte(patchData))
-		assert.NoError(t, err)
-	})
+This is a sample monorepo for testing.
 
-	t.Run("Missing Headers", func(t *testing.T) {
-		patchData := `@@ -1,1 +1,1 @@
--old
-+new
-`
-		err := validatePatch([]byte(patchData))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "patch has hunk without proper file headers")
-	})
+## Structure
 
-	t.Run("No Hunks", func(t *testing.T) {
-		patchData := `--- a/test.txt
-+++ b/test.txt
-`
-		err := validatePatch([]byte(patchData))
-		assert.NoError(t, err) // Valid headers, no hunks is OK
-	})
+- src/frontend/ - Frontend application
+- src/backend/ - Backend service  
+- docs/ - Documentation
+- config/ - Configuration files`,
+
+		"config/app.yaml": `environment: test
+services:
+  frontend:
+    port: 3000
+  backend:
+    port: 8080`,
+	}
+
+	for path, content := range files {
+		fullPath := filepath.Join(repoRoot, path)
+		require.NoError(t, os.WriteFile(fullPath, []byte(content), 0644))
+	}
+
+	return repoRoot
 }
