@@ -79,10 +79,10 @@ func validatePatch(patchData []byte) error {
 	if len(patchData) == 0 {
 		return fmt.Errorf("patch data is empty")
 	}
-	
+
 	scanner := bufio.NewScanner(bytes.NewReader(patchData))
 	hasValidHeader := false
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ ") {
@@ -94,11 +94,11 @@ func validatePatch(patchData []byte) error {
 			}
 		}
 	}
-	
+
 	if !hasValidHeader {
 		return fmt.Errorf("patch does not contain valid unified diff headers")
 	}
-	
+
 	return nil
 }
 
@@ -106,16 +106,16 @@ func parsePatch(patchData []byte) (*ParsedPatch, error) {
 	if err := validatePatch(patchData); err != nil {
 		return nil, err
 	}
-	
+
 	scanner := bufio.NewScanner(bytes.NewReader(patchData))
 	patch := &ParsedPatch{}
 	var currentHunk *PatchHunk
-	
+
 	hunkRegex := regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		if strings.HasPrefix(line, "--- ") {
 			oldFile := strings.TrimPrefix(line, "--- ")
 			if strings.HasPrefix(oldFile, "a/") {
@@ -132,7 +132,7 @@ func parsePatch(patchData []byte) (*ParsedPatch, error) {
 			if currentHunk != nil {
 				patch.Hunks = append(patch.Hunks, *currentHunk)
 			}
-			
+
 			oldStart, _ := strconv.Atoi(matches[1])
 			oldCount := 1
 			if matches[2] != "" {
@@ -143,7 +143,7 @@ func parsePatch(patchData []byte) (*ParsedPatch, error) {
 			if matches[4] != "" {
 				newCount, _ = strconv.Atoi(matches[4])
 			}
-			
+
 			currentHunk = &PatchHunk{
 				OldStart: oldStart,
 				OldCount: oldCount,
@@ -158,17 +158,17 @@ func parsePatch(patchData []byte) (*ParsedPatch, error) {
 			currentHunk.Lines = append(currentHunk.Lines, patchLine)
 		}
 	}
-	
+
 	if currentHunk != nil {
 		patch.Hunks = append(patch.Hunks, *currentHunk)
 	}
-	
+
 	return patch, nil
 }
 
 func backupFile(filePath string) (string, error) {
 	backupPath := filePath + ".backup." + fmt.Sprintf("%d", time.Now().Unix())
-	
+
 	input, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -177,25 +177,25 @@ func backupFile(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to open file for backup: %v", err)
 	}
 	defer input.Close()
-	
+
 	output, err := os.Create(backupPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create backup file: %v", err)
 	}
 	defer output.Close()
-	
+
 	_, err = io.Copy(output, input)
 	if err != nil {
 		os.Remove(backupPath)
 		return "", fmt.Errorf("failed to copy file for backup: %v", err)
 	}
-	
+
 	return backupPath, nil
 }
 
 func applyPatch(filePath string, patch *ParsedPatch) error {
 	var originalLines []string
-	
+
 	if _, err := os.Stat(filePath); err == nil {
 		content, err := os.ReadFile(filePath)
 		if err != nil {
@@ -209,16 +209,16 @@ func applyPatch(filePath string, patch *ParsedPatch) error {
 			}
 		}
 	}
-	
+
 	result := make([]string, 0, len(originalLines)+100)
 	originalIndex := 0
-	
+
 	for _, hunk := range patch.Hunks {
 		for originalIndex < hunk.OldStart-1 && originalIndex < len(originalLines) {
 			result = append(result, originalLines[originalIndex])
 			originalIndex++
 		}
-		
+
 		for _, patchLine := range hunk.Lines {
 			switch patchLine.Type {
 			case " ":
@@ -235,25 +235,25 @@ func applyPatch(filePath string, patch *ParsedPatch) error {
 			}
 		}
 	}
-	
+
 	for originalIndex < len(originalLines) {
 		result = append(result, originalLines[originalIndex])
 		originalIndex++
 	}
-	
+
 	newContent := strings.Join(result, "\n")
 	if len(result) > 0 {
 		newContent += "\n"
 	}
-	
+
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
 	}
-	
+
 	if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
 		return fmt.Errorf("failed to write patched file: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -290,7 +290,7 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 	}
 
 	targetFile := filepath.Join(s.repoRoot, parsed.Header.NewFile)
-	
+
 	backupPath, err := backupFile(targetFile)
 	if err != nil {
 		return &pb.MergePatchResponse{
@@ -318,9 +318,9 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 	}
 
 	commitHash := fmt.Sprintf("commit_%d", time.Now().Unix())
-	
+
 	log.Printf("Successfully applied patch to %s", targetFile)
-	
+
 	return &pb.MergePatchResponse{
 		Success:    true,
 		Message:    fmt.Sprintf("Patch applied successfully to %s", req.Path),

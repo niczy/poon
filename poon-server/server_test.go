@@ -840,7 +840,7 @@ func TestPatchParsing(t *testing.T) {
 		assert.Equal(t, "test.txt", patch.Header.OldFile)
 		assert.Equal(t, "test.txt", patch.Header.NewFile)
 		assert.Len(t, patch.Hunks, 1)
-		
+
 		hunk := patch.Hunks[0]
 		assert.Equal(t, 1, hunk.OldStart)
 		assert.Equal(t, 3, hunk.OldCount)
@@ -878,7 +878,7 @@ func TestPatchParsing(t *testing.T) {
 		patch, err := parsePatch([]byte(patchData))
 		require.NoError(t, err)
 		assert.Len(t, patch.Hunks, 2)
-		
+
 		assert.Equal(t, 1, patch.Hunks[0].OldStart)
 		assert.Equal(t, 10, patch.Hunks[1].OldStart)
 	})
