@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -282,6 +283,7 @@ func TestReadFileEndpoint(t *testing.T) {
 		resp, err := srv.ReadFile(context.Background(), req)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "invalid path")
 	})
 }
 
@@ -463,6 +465,7 @@ func TestReadDirectoryEndpoint(t *testing.T) {
 		resp, err := srv.ReadDirectory(context.Background(), req)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "invalid path")
 	})
 
 	t.Run("Verify File Metadata Accuracy", func(t *testing.T) {
@@ -483,6 +486,154 @@ func TestReadDirectoryEndpoint(t *testing.T) {
 				assert.Equal(t, info.ModTime().Unix(), item.ModTime)
 				assert.False(t, item.IsDir)
 			}
+		}
+	})
+}
+
+func TestPathValidation(t *testing.T) {
+	repoRoot := createTestRepo(t)
+	srv := &server{
+		repoRoot: repoRoot,
+	}
+
+	t.Run("Path with Double Dots - ReadFile", func(t *testing.T) {
+		testCases := []string{
+			"../etc/passwd",
+			"../../etc/passwd",
+			"src/../../../etc/passwd",
+			"docs/../config/../../../etc/passwd",
+			"config/app.yaml/../../../etc/passwd",
+		}
+
+		for _, path := range testCases {
+			t.Run(fmt.Sprintf("Path: %s", path), func(t *testing.T) {
+				req := &pb.ReadFileRequest{Path: path}
+				resp, err := srv.ReadFile(context.Background(), req)
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+				assert.Contains(t, err.Error(), "path traversal not allowed")
+			})
+		}
+	})
+
+	t.Run("Path with Double Dots - ReadDirectory", func(t *testing.T) {
+		testCases := []string{
+			"../etc",
+			"../../etc",
+			"src/../../../etc",
+			"docs/../config/../../../etc",
+		}
+
+		for _, path := range testCases {
+			t.Run(fmt.Sprintf("Path: %s", path), func(t *testing.T) {
+				req := &pb.ReadDirectoryRequest{Path: path}
+				resp, err := srv.ReadDirectory(context.Background(), req)
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+				assert.Contains(t, err.Error(), "path traversal not allowed")
+			})
+		}
+	})
+
+	t.Run("Absolute Paths - ReadFile", func(t *testing.T) {
+		testCases := []string{
+			"/etc/passwd",
+			"/usr/bin/sh",
+			"/home/user/.ssh/id_rsa",
+		}
+
+		for _, path := range testCases {
+			t.Run(fmt.Sprintf("Path: %s", path), func(t *testing.T) {
+				req := &pb.ReadFileRequest{Path: path}
+				resp, err := srv.ReadFile(context.Background(), req)
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+				assert.Contains(t, err.Error(), "invalid path")
+			})
+		}
+	})
+
+	t.Run("Absolute Paths - ReadDirectory", func(t *testing.T) {
+		testCases := []string{
+			"/etc",
+			"/usr/bin",
+			"/home/user",
+		}
+
+		for _, path := range testCases {
+			t.Run(fmt.Sprintf("Path: %s", path), func(t *testing.T) {
+				req := &pb.ReadDirectoryRequest{Path: path}
+				resp, err := srv.ReadDirectory(context.Background(), req)
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+				assert.Contains(t, err.Error(), "invalid path")
+			})
+		}
+	})
+
+	t.Run("Valid Relative Paths - ReadFile", func(t *testing.T) {
+		testCases := []string{
+			"docs/README.md",
+			"src/frontend/app.js",
+			"config/app.yaml",
+		}
+
+		for _, path := range testCases {
+			t.Run(fmt.Sprintf("Path: %s", path), func(t *testing.T) {
+				req := &pb.ReadFileRequest{Path: path}
+				resp, err := srv.ReadFile(context.Background(), req)
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+				assert.NotEmpty(t, resp.Content)
+			})
+		}
+	})
+
+	t.Run("Valid Relative Paths - ReadDirectory", func(t *testing.T) {
+		testCases := []string{
+			"",
+			"src",
+			"docs",
+			"config",
+			"src/frontend",
+		}
+
+		for _, path := range testCases {
+			t.Run(fmt.Sprintf("Path: %s", path), func(t *testing.T) {
+				req := &pb.ReadDirectoryRequest{Path: path}
+				resp, err := srv.ReadDirectory(context.Background(), req)
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+				assert.NotEmpty(t, resp.Items)
+			})
+		}
+	})
+
+	t.Run("Edge Cases - Clean Path Resolution", func(t *testing.T) {
+		testCases := []struct {
+			path        string
+			shouldError bool
+			description string
+		}{
+			{"./docs/README.md", false, "Current directory prefix"},
+			{"docs/./README.md", false, "Current directory in middle"},
+			{"docs/../docs/README.md", true, "Parent directory reference"},
+			{"docs/README.md", false, "Valid file path"},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.description, func(t *testing.T) {
+				req := &pb.ReadFileRequest{Path: tc.path}
+				resp, err := srv.ReadFile(context.Background(), req)
+				
+				if tc.shouldError {
+					assert.Error(t, err)
+					assert.Nil(t, resp)
+				} else {
+					assert.NoError(t, err)
+					assert.NotNil(t, resp)
+				}
+			})
 		}
 	})
 }
