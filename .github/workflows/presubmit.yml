@@ -1,4 +1,4 @@
-name: Presubmit Tests
+name: presubmit 
 
 on:
   push:
@@ -7,66 +7,36 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  test:
+  test-component:
     runs-on: ubuntu-latest
-    
     strategy:
       matrix:
-        component: [poon-git, poon-server, poon-cli, poon-proto, poon-tests, poon-web]
-      fail-fast: false
-
+        component: [poon-proto, poon-server, poon-git, poon-cli, poon-tests, poon-web]
+    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go (for Go components)
-      if: matrix.component != 'poon-web' && matrix.component != 'poon-proto'
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
-
-    - name: Set up Node.js (for Node.js components)
-      if: matrix.component == 'poon-web' || matrix.component == 'poon-proto'
+    
+    - name: Set up Node.js
+      if: matrix.component == 'poon-proto' || matrix.component == 'poon-web'
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '18'
         cache: 'npm'
-        cache-dependency-path: |
-          poon-web/package-lock.json
-          poon-proto/package-lock.json
-
-    - name: Install Protocol Buffers compiler
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y protobuf-compiler
-
-    - name: Install Go protobuf plugins
-      if: matrix.component != 'poon-web'
-      run: |
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-    - name: Generate protobuf files (if needed)
-      if: matrix.component != 'poon-web'
-      run: |
-        cd poon-proto
-        mkdir -p gen/go gen/js gen/python gen/ts
-        protoc --go_out=gen --go_opt=paths=source_relative --go-grpc_out=gen --go-grpc_opt=paths=source_relative --proto_path=. monorepo.proto
-        mv gen/monorepo*.pb.go gen/go/ || true
-
-    - name: Run tests for ${{ matrix.component }}
-      run: |
-        cd ${{ matrix.component }}
-        chmod +x scripts/run_test.sh
-        ./scripts/run_test.sh
-
-    - name: Upload test results (if available)
-      if: always()
-      uses: actions/upload-artifact@v4
+    
+    - name: Install protoc
+      if: matrix.component == 'poon-proto' || matrix.component == 'poon-server' || matrix.component == 'poon-git' || matrix.component == 'poon-cli'
+      uses: arduino/setup-protoc@v3
       with:
-        name: test-results-${{ matrix.component }}
-        path: |
-          ${{ matrix.component }}/**/*.log
-          ${{ matrix.component }}/**/coverage.out
-        retention-days: 7
-        if-no-files-found: ignore
+        version: '25.x'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: CI Setup
+      run: make ci-setup
+    
+    - name: Test Component
+      run: make ci-test-component COMPONENT=${{ matrix.component }}

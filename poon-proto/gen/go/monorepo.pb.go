@@ -4,7 +4,7 @@
 // 	protoc        v5.27.3
 // source: monorepo.proto
 
-package gen
+package _go
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -20,6 +20,58 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type WorkspaceStatus int32
+
+const (
+	WorkspaceStatus_ACTIVE    WorkspaceStatus = 0
+	WorkspaceStatus_SYNCING   WorkspaceStatus = 1
+	WorkspaceStatus_ERROR     WorkspaceStatus = 2
+	WorkspaceStatus_SUSPENDED WorkspaceStatus = 3
+)
+
+// Enum value maps for WorkspaceStatus.
+var (
+	WorkspaceStatus_name = map[int32]string{
+		0: "ACTIVE",
+		1: "SYNCING",
+		2: "ERROR",
+		3: "SUSPENDED",
+	}
+	WorkspaceStatus_value = map[string]int32{
+		"ACTIVE":    0,
+		"SYNCING":   1,
+		"ERROR":     2,
+		"SUSPENDED": 3,
+	}
+)
+
+func (x WorkspaceStatus) Enum() *WorkspaceStatus {
+	p := new(WorkspaceStatus)
+	*p = x
+	return p
+}
+
+func (x WorkspaceStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkspaceStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_monorepo_proto_enumTypes[0].Descriptor()
+}
+
+func (WorkspaceStatus) Type() protoreflect.EnumType {
+	return &file_monorepo_proto_enumTypes[0]
+}
+
+func (x WorkspaceStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkspaceStatus.Descriptor instead.
+func (WorkspaceStatus) EnumDescriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{0}
+}
 
 // Request to merge a patch
 type MergePatchRequest struct {
@@ -875,6 +927,805 @@ func (x *CreateBranchResponse) GetCommitHash() string {
 	return ""
 }
 
+// Workspace management messages
+type CreateWorkspaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	TrackedPaths  []string               `protobuf:"bytes,2,rep,name=tracked_paths,json=trackedPaths,proto3" json:"tracked_paths,omitempty"`
+	BaseBranch    string                 `protobuf:"bytes,3,opt,name=base_branch,json=baseBranch,proto3" json:"base_branch,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWorkspaceRequest) Reset() {
+	*x = CreateWorkspaceRequest{}
+	mi := &file_monorepo_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWorkspaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWorkspaceRequest) ProtoMessage() {}
+
+func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWorkspaceRequest.ProtoReflect.Descriptor instead.
+func (*CreateWorkspaceRequest) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateWorkspaceRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateWorkspaceRequest) GetTrackedPaths() []string {
+	if x != nil {
+		return x.TrackedPaths
+	}
+	return nil
+}
+
+func (x *CreateWorkspaceRequest) GetBaseBranch() string {
+	if x != nil {
+		return x.BaseBranch
+	}
+	return ""
+}
+
+func (x *CreateWorkspaceRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type CreateWorkspaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	RemoteUrl     string                 `protobuf:"bytes,4,opt,name=remote_url,json=remoteUrl,proto3" json:"remote_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWorkspaceResponse) Reset() {
+	*x = CreateWorkspaceResponse{}
+	mi := &file_monorepo_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWorkspaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWorkspaceResponse) ProtoMessage() {}
+
+func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWorkspaceResponse.ProtoReflect.Descriptor instead.
+func (*CreateWorkspaceResponse) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CreateWorkspaceResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CreateWorkspaceResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *CreateWorkspaceResponse) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *CreateWorkspaceResponse) GetRemoteUrl() string {
+	if x != nil {
+		return x.RemoteUrl
+	}
+	return ""
+}
+
+type GetWorkspaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkspaceRequest) Reset() {
+	*x = GetWorkspaceRequest{}
+	mi := &file_monorepo_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkspaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkspaceRequest) ProtoMessage() {}
+
+func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkspaceRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkspaceRequest) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetWorkspaceRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type GetWorkspaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Workspace     *WorkspaceInfo         `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkspaceResponse) Reset() {
+	*x = GetWorkspaceResponse{}
+	mi := &file_monorepo_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkspaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkspaceResponse) ProtoMessage() {}
+
+func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkspaceResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkspaceResponse) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetWorkspaceResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GetWorkspaceResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GetWorkspaceResponse) GetWorkspace() *WorkspaceInfo {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+type UpdateWorkspaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	TrackedPaths  []string               `protobuf:"bytes,2,rep,name=tracked_paths,json=trackedPaths,proto3" json:"tracked_paths,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkspaceRequest) Reset() {
+	*x = UpdateWorkspaceRequest{}
+	mi := &file_monorepo_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkspaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkspaceRequest) ProtoMessage() {}
+
+func (x *UpdateWorkspaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkspaceRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorkspaceRequest) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UpdateWorkspaceRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *UpdateWorkspaceRequest) GetTrackedPaths() []string {
+	if x != nil {
+		return x.TrackedPaths
+	}
+	return nil
+}
+
+func (x *UpdateWorkspaceRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type UpdateWorkspaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Workspace     *WorkspaceInfo         `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkspaceResponse) Reset() {
+	*x = UpdateWorkspaceResponse{}
+	mi := &file_monorepo_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkspaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkspaceResponse) ProtoMessage() {}
+
+func (x *UpdateWorkspaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkspaceResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWorkspaceResponse) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UpdateWorkspaceResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *UpdateWorkspaceResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *UpdateWorkspaceResponse) GetWorkspace() *WorkspaceInfo {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+type DeleteWorkspaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteWorkspaceRequest) Reset() {
+	*x = DeleteWorkspaceRequest{}
+	mi := &file_monorepo_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteWorkspaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteWorkspaceRequest) ProtoMessage() {}
+
+func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteWorkspaceRequest.ProtoReflect.Descriptor instead.
+func (*DeleteWorkspaceRequest) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DeleteWorkspaceRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type DeleteWorkspaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteWorkspaceResponse) Reset() {
+	*x = DeleteWorkspaceResponse{}
+	mi := &file_monorepo_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteWorkspaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteWorkspaceResponse) ProtoMessage() {}
+
+func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteWorkspaceResponse.ProtoReflect.Descriptor instead.
+func (*DeleteWorkspaceResponse) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *DeleteWorkspaceResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *DeleteWorkspaceResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type WorkspaceInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	TrackedPaths  []string               `protobuf:"bytes,3,rep,name=tracked_paths,json=trackedPaths,proto3" json:"tracked_paths,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastSync      string                 `protobuf:"bytes,5,opt,name=last_sync,json=lastSync,proto3" json:"last_sync,omitempty"`
+	Status        WorkspaceStatus        `protobuf:"varint,6,opt,name=status,proto3,enum=monorepo.WorkspaceStatus" json:"status,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkspaceInfo) Reset() {
+	*x = WorkspaceInfo{}
+	mi := &file_monorepo_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkspaceInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkspaceInfo) ProtoMessage() {}
+
+func (x *WorkspaceInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkspaceInfo.ProtoReflect.Descriptor instead.
+func (*WorkspaceInfo) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *WorkspaceInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkspaceInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkspaceInfo) GetTrackedPaths() []string {
+	if x != nil {
+		return x.TrackedPaths
+	}
+	return nil
+}
+
+func (x *WorkspaceInfo) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *WorkspaceInfo) GetLastSync() string {
+	if x != nil {
+		return x.LastSync
+	}
+	return ""
+}
+
+func (x *WorkspaceInfo) GetStatus() WorkspaceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return WorkspaceStatus_ACTIVE
+}
+
+func (x *WorkspaceInfo) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+// Sparse checkout messages
+type SparseCheckoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Paths         []string               `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	TargetDir     string                 `protobuf:"bytes,2,opt,name=target_dir,json=targetDir,proto3" json:"target_dir,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SparseCheckoutRequest) Reset() {
+	*x = SparseCheckoutRequest{}
+	mi := &file_monorepo_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SparseCheckoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SparseCheckoutRequest) ProtoMessage() {}
+
+func (x *SparseCheckoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SparseCheckoutRequest.ProtoReflect.Descriptor instead.
+func (*SparseCheckoutRequest) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SparseCheckoutRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *SparseCheckoutRequest) GetTargetDir() string {
+	if x != nil {
+		return x.TargetDir
+	}
+	return ""
+}
+
+func (x *SparseCheckoutRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type SparseCheckoutResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Success         bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message         string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	ConfiguredPaths []string               `protobuf:"bytes,3,rep,name=configured_paths,json=configuredPaths,proto3" json:"configured_paths,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SparseCheckoutResponse) Reset() {
+	*x = SparseCheckoutResponse{}
+	mi := &file_monorepo_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SparseCheckoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SparseCheckoutResponse) ProtoMessage() {}
+
+func (x *SparseCheckoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SparseCheckoutResponse.ProtoReflect.Descriptor instead.
+func (*SparseCheckoutResponse) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *SparseCheckoutResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SparseCheckoutResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *SparseCheckoutResponse) GetConfiguredPaths() []string {
+	if x != nil {
+		return x.ConfiguredPaths
+	}
+	return nil
+}
+
+// Download messages
+type DownloadPathRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`
+	Format        string                 `protobuf:"bytes,3,opt,name=format,proto3" json:"format,omitempty"` // "tar", "zip", etc.
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadPathRequest) Reset() {
+	*x = DownloadPathRequest{}
+	mi := &file_monorepo_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadPathRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadPathRequest) ProtoMessage() {}
+
+func (x *DownloadPathRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadPathRequest.ProtoReflect.Descriptor instead.
+func (*DownloadPathRequest) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DownloadPathRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DownloadPathRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *DownloadPathRequest) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+type DownloadPathResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	Filename      string                 `protobuf:"bytes,4,opt,name=filename,proto3" json:"filename,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadPathResponse) Reset() {
+	*x = DownloadPathResponse{}
+	mi := &file_monorepo_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadPathResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadPathResponse) ProtoMessage() {}
+
+func (x *DownloadPathResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_monorepo_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadPathResponse.ProtoReflect.Descriptor instead.
+func (*DownloadPathResponse) Descriptor() ([]byte, []int) {
+	return file_monorepo_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DownloadPathResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *DownloadPathResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *DownloadPathResponse) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *DownloadPathResponse) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
 var File_monorepo_proto protoreflect.FileDescriptor
 
 const file_monorepo_proto_rawDesc = "" +
@@ -940,7 +1791,80 @@ const file_monorepo_proto_rawDesc = "" +
 	"\vbranch_name\x18\x03 \x01(\tR\n" +
 	"branchName\x12\x1f\n" +
 	"\vcommit_hash\x18\x04 \x01(\tR\n" +
-	"commitHash2\xd3\x03\n" +
+	"commitHash\"\xfb\x01\n" +
+	"\x16CreateWorkspaceRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rtracked_paths\x18\x02 \x03(\tR\ftrackedPaths\x12\x1f\n" +
+	"\vbase_branch\x18\x03 \x01(\tR\n" +
+	"baseBranch\x12J\n" +
+	"\bmetadata\x18\x04 \x03(\v2..monorepo.CreateWorkspaceRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8f\x01\n" +
+	"\x17CreateWorkspaceResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12!\n" +
+	"\fworkspace_id\x18\x03 \x01(\tR\vworkspaceId\x12\x1d\n" +
+	"\n" +
+	"remote_url\x18\x04 \x01(\tR\tremoteUrl\"8\n" +
+	"\x13GetWorkspaceRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"\x81\x01\n" +
+	"\x14GetWorkspaceResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x125\n" +
+	"\tworkspace\x18\x03 \x01(\v2\x17.monorepo.WorkspaceInfoR\tworkspace\"\xe9\x01\n" +
+	"\x16UpdateWorkspaceRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12#\n" +
+	"\rtracked_paths\x18\x02 \x03(\tR\ftrackedPaths\x12J\n" +
+	"\bmetadata\x18\x03 \x03(\v2..monorepo.UpdateWorkspaceRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x84\x01\n" +
+	"\x17UpdateWorkspaceResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x125\n" +
+	"\tworkspace\x18\x03 \x01(\v2\x17.monorepo.WorkspaceInfoR\tworkspace\";\n" +
+	"\x16DeleteWorkspaceRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"M\n" +
+	"\x17DeleteWorkspaceResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xc7\x02\n" +
+	"\rWorkspaceInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
+	"\rtracked_paths\x18\x03 \x03(\tR\ftrackedPaths\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1b\n" +
+	"\tlast_sync\x18\x05 \x01(\tR\blastSync\x121\n" +
+	"\x06status\x18\x06 \x01(\x0e2\x19.monorepo.WorkspaceStatusR\x06status\x12A\n" +
+	"\bmetadata\x18\a \x03(\v2%.monorepo.WorkspaceInfo.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"o\n" +
+	"\x15SparseCheckoutRequest\x12\x14\n" +
+	"\x05paths\x18\x01 \x03(\tR\x05paths\x12\x1d\n" +
+	"\n" +
+	"target_dir\x18\x02 \x01(\tR\ttargetDir\x12!\n" +
+	"\fworkspace_id\x18\x03 \x01(\tR\vworkspaceId\"w\n" +
+	"\x16SparseCheckoutResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12)\n" +
+	"\x10configured_paths\x18\x03 \x03(\tR\x0fconfiguredPaths\"Y\n" +
+	"\x13DownloadPathRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x16\n" +
+	"\x06format\x18\x03 \x01(\tR\x06format\"\x80\x01\n" +
+	"\x14DownloadPathResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\fR\acontent\x12\x1a\n" +
+	"\bfilename\x18\x04 \x01(\tR\bfilename*D\n" +
+	"\x0fWorkspaceStatus\x12\n" +
+	"\n" +
+	"\x06ACTIVE\x10\x00\x12\v\n" +
+	"\aSYNCING\x10\x01\x12\t\n" +
+	"\x05ERROR\x10\x02\x12\r\n" +
+	"\tSUSPENDED\x10\x032\xd7\a\n" +
 	"\x0fMonorepoService\x12G\n" +
 	"\n" +
 	"MergePatch\x12\x1b.monorepo.MergePatchRequest\x1a\x1c.monorepo.MergePatchResponse\x12P\n" +
@@ -948,7 +1872,13 @@ const file_monorepo_proto_rawDesc = "" +
 	"\bReadFile\x12\x19.monorepo.ReadFileRequest\x1a\x1a.monorepo.ReadFileResponse\x12M\n" +
 	"\x0eGetFileHistory\x12\x1c.monorepo.FileHistoryRequest\x1a\x1d.monorepo.FileHistoryResponse\x12D\n" +
 	"\vGetBranches\x12\x19.monorepo.BranchesRequest\x1a\x1a.monorepo.BranchesResponse\x12M\n" +
-	"\fCreateBranch\x12\x1d.monorepo.CreateBranchRequest\x1a\x1e.monorepo.CreateBranchResponseB$Z\"github.com/nic/poon/poon-proto/genb\x06proto3"
+	"\fCreateBranch\x12\x1d.monorepo.CreateBranchRequest\x1a\x1e.monorepo.CreateBranchResponse\x12V\n" +
+	"\x0fCreateWorkspace\x12 .monorepo.CreateWorkspaceRequest\x1a!.monorepo.CreateWorkspaceResponse\x12M\n" +
+	"\fGetWorkspace\x12\x1d.monorepo.GetWorkspaceRequest\x1a\x1e.monorepo.GetWorkspaceResponse\x12V\n" +
+	"\x0fUpdateWorkspace\x12 .monorepo.UpdateWorkspaceRequest\x1a!.monorepo.UpdateWorkspaceResponse\x12V\n" +
+	"\x0fDeleteWorkspace\x12 .monorepo.DeleteWorkspaceRequest\x1a!.monorepo.DeleteWorkspaceResponse\x12\\\n" +
+	"\x17ConfigureSparseCheckout\x12\x1f.monorepo.SparseCheckoutRequest\x1a .monorepo.SparseCheckoutResponse\x12M\n" +
+	"\fDownloadPath\x12\x1d.monorepo.DownloadPathRequest\x1a\x1e.monorepo.DownloadPathResponseB'Z%github.com/nic/poon/poon-proto/gen/gob\x06proto3"
 
 var (
 	file_monorepo_proto_rawDescOnce sync.Once
@@ -962,43 +1892,79 @@ func file_monorepo_proto_rawDescGZIP() []byte {
 	return file_monorepo_proto_rawDescData
 }
 
-var file_monorepo_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_monorepo_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_monorepo_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_monorepo_proto_goTypes = []any{
-	(*MergePatchRequest)(nil),     // 0: monorepo.MergePatchRequest
-	(*MergePatchResponse)(nil),    // 1: monorepo.MergePatchResponse
-	(*ReadDirectoryRequest)(nil),  // 2: monorepo.ReadDirectoryRequest
-	(*ReadDirectoryResponse)(nil), // 3: monorepo.ReadDirectoryResponse
-	(*DirectoryItem)(nil),         // 4: monorepo.DirectoryItem
-	(*ReadFileRequest)(nil),       // 5: monorepo.ReadFileRequest
-	(*ReadFileResponse)(nil),      // 6: monorepo.ReadFileResponse
-	(*FileHistoryRequest)(nil),    // 7: monorepo.FileHistoryRequest
-	(*FileHistoryResponse)(nil),   // 8: monorepo.FileHistoryResponse
-	(*Commit)(nil),                // 9: monorepo.Commit
-	(*BranchesRequest)(nil),       // 10: monorepo.BranchesRequest
-	(*BranchesResponse)(nil),      // 11: monorepo.BranchesResponse
-	(*CreateBranchRequest)(nil),   // 12: monorepo.CreateBranchRequest
-	(*CreateBranchResponse)(nil),  // 13: monorepo.CreateBranchResponse
+	(WorkspaceStatus)(0),            // 0: monorepo.WorkspaceStatus
+	(*MergePatchRequest)(nil),       // 1: monorepo.MergePatchRequest
+	(*MergePatchResponse)(nil),      // 2: monorepo.MergePatchResponse
+	(*ReadDirectoryRequest)(nil),    // 3: monorepo.ReadDirectoryRequest
+	(*ReadDirectoryResponse)(nil),   // 4: monorepo.ReadDirectoryResponse
+	(*DirectoryItem)(nil),           // 5: monorepo.DirectoryItem
+	(*ReadFileRequest)(nil),         // 6: monorepo.ReadFileRequest
+	(*ReadFileResponse)(nil),        // 7: monorepo.ReadFileResponse
+	(*FileHistoryRequest)(nil),      // 8: monorepo.FileHistoryRequest
+	(*FileHistoryResponse)(nil),     // 9: monorepo.FileHistoryResponse
+	(*Commit)(nil),                  // 10: monorepo.Commit
+	(*BranchesRequest)(nil),         // 11: monorepo.BranchesRequest
+	(*BranchesResponse)(nil),        // 12: monorepo.BranchesResponse
+	(*CreateBranchRequest)(nil),     // 13: monorepo.CreateBranchRequest
+	(*CreateBranchResponse)(nil),    // 14: monorepo.CreateBranchResponse
+	(*CreateWorkspaceRequest)(nil),  // 15: monorepo.CreateWorkspaceRequest
+	(*CreateWorkspaceResponse)(nil), // 16: monorepo.CreateWorkspaceResponse
+	(*GetWorkspaceRequest)(nil),     // 17: monorepo.GetWorkspaceRequest
+	(*GetWorkspaceResponse)(nil),    // 18: monorepo.GetWorkspaceResponse
+	(*UpdateWorkspaceRequest)(nil),  // 19: monorepo.UpdateWorkspaceRequest
+	(*UpdateWorkspaceResponse)(nil), // 20: monorepo.UpdateWorkspaceResponse
+	(*DeleteWorkspaceRequest)(nil),  // 21: monorepo.DeleteWorkspaceRequest
+	(*DeleteWorkspaceResponse)(nil), // 22: monorepo.DeleteWorkspaceResponse
+	(*WorkspaceInfo)(nil),           // 23: monorepo.WorkspaceInfo
+	(*SparseCheckoutRequest)(nil),   // 24: monorepo.SparseCheckoutRequest
+	(*SparseCheckoutResponse)(nil),  // 25: monorepo.SparseCheckoutResponse
+	(*DownloadPathRequest)(nil),     // 26: monorepo.DownloadPathRequest
+	(*DownloadPathResponse)(nil),    // 27: monorepo.DownloadPathResponse
+	nil,                             // 28: monorepo.CreateWorkspaceRequest.MetadataEntry
+	nil,                             // 29: monorepo.UpdateWorkspaceRequest.MetadataEntry
+	nil,                             // 30: monorepo.WorkspaceInfo.MetadataEntry
 }
 var file_monorepo_proto_depIdxs = []int32{
-	4,  // 0: monorepo.ReadDirectoryResponse.items:type_name -> monorepo.DirectoryItem
-	9,  // 1: monorepo.FileHistoryResponse.commits:type_name -> monorepo.Commit
-	0,  // 2: monorepo.MonorepoService.MergePatch:input_type -> monorepo.MergePatchRequest
-	2,  // 3: monorepo.MonorepoService.ReadDirectory:input_type -> monorepo.ReadDirectoryRequest
-	5,  // 4: monorepo.MonorepoService.ReadFile:input_type -> monorepo.ReadFileRequest
-	7,  // 5: monorepo.MonorepoService.GetFileHistory:input_type -> monorepo.FileHistoryRequest
-	10, // 6: monorepo.MonorepoService.GetBranches:input_type -> monorepo.BranchesRequest
-	12, // 7: monorepo.MonorepoService.CreateBranch:input_type -> monorepo.CreateBranchRequest
-	1,  // 8: monorepo.MonorepoService.MergePatch:output_type -> monorepo.MergePatchResponse
-	3,  // 9: monorepo.MonorepoService.ReadDirectory:output_type -> monorepo.ReadDirectoryResponse
-	6,  // 10: monorepo.MonorepoService.ReadFile:output_type -> monorepo.ReadFileResponse
-	8,  // 11: monorepo.MonorepoService.GetFileHistory:output_type -> monorepo.FileHistoryResponse
-	11, // 12: monorepo.MonorepoService.GetBranches:output_type -> monorepo.BranchesResponse
-	13, // 13: monorepo.MonorepoService.CreateBranch:output_type -> monorepo.CreateBranchResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	5,  // 0: monorepo.ReadDirectoryResponse.items:type_name -> monorepo.DirectoryItem
+	10, // 1: monorepo.FileHistoryResponse.commits:type_name -> monorepo.Commit
+	28, // 2: monorepo.CreateWorkspaceRequest.metadata:type_name -> monorepo.CreateWorkspaceRequest.MetadataEntry
+	23, // 3: monorepo.GetWorkspaceResponse.workspace:type_name -> monorepo.WorkspaceInfo
+	29, // 4: monorepo.UpdateWorkspaceRequest.metadata:type_name -> monorepo.UpdateWorkspaceRequest.MetadataEntry
+	23, // 5: monorepo.UpdateWorkspaceResponse.workspace:type_name -> monorepo.WorkspaceInfo
+	0,  // 6: monorepo.WorkspaceInfo.status:type_name -> monorepo.WorkspaceStatus
+	30, // 7: monorepo.WorkspaceInfo.metadata:type_name -> monorepo.WorkspaceInfo.MetadataEntry
+	1,  // 8: monorepo.MonorepoService.MergePatch:input_type -> monorepo.MergePatchRequest
+	3,  // 9: monorepo.MonorepoService.ReadDirectory:input_type -> monorepo.ReadDirectoryRequest
+	6,  // 10: monorepo.MonorepoService.ReadFile:input_type -> monorepo.ReadFileRequest
+	8,  // 11: monorepo.MonorepoService.GetFileHistory:input_type -> monorepo.FileHistoryRequest
+	11, // 12: monorepo.MonorepoService.GetBranches:input_type -> monorepo.BranchesRequest
+	13, // 13: monorepo.MonorepoService.CreateBranch:input_type -> monorepo.CreateBranchRequest
+	15, // 14: monorepo.MonorepoService.CreateWorkspace:input_type -> monorepo.CreateWorkspaceRequest
+	17, // 15: monorepo.MonorepoService.GetWorkspace:input_type -> monorepo.GetWorkspaceRequest
+	19, // 16: monorepo.MonorepoService.UpdateWorkspace:input_type -> monorepo.UpdateWorkspaceRequest
+	21, // 17: monorepo.MonorepoService.DeleteWorkspace:input_type -> monorepo.DeleteWorkspaceRequest
+	24, // 18: monorepo.MonorepoService.ConfigureSparseCheckout:input_type -> monorepo.SparseCheckoutRequest
+	26, // 19: monorepo.MonorepoService.DownloadPath:input_type -> monorepo.DownloadPathRequest
+	2,  // 20: monorepo.MonorepoService.MergePatch:output_type -> monorepo.MergePatchResponse
+	4,  // 21: monorepo.MonorepoService.ReadDirectory:output_type -> monorepo.ReadDirectoryResponse
+	7,  // 22: monorepo.MonorepoService.ReadFile:output_type -> monorepo.ReadFileResponse
+	9,  // 23: monorepo.MonorepoService.GetFileHistory:output_type -> monorepo.FileHistoryResponse
+	12, // 24: monorepo.MonorepoService.GetBranches:output_type -> monorepo.BranchesResponse
+	14, // 25: monorepo.MonorepoService.CreateBranch:output_type -> monorepo.CreateBranchResponse
+	16, // 26: monorepo.MonorepoService.CreateWorkspace:output_type -> monorepo.CreateWorkspaceResponse
+	18, // 27: monorepo.MonorepoService.GetWorkspace:output_type -> monorepo.GetWorkspaceResponse
+	20, // 28: monorepo.MonorepoService.UpdateWorkspace:output_type -> monorepo.UpdateWorkspaceResponse
+	22, // 29: monorepo.MonorepoService.DeleteWorkspace:output_type -> monorepo.DeleteWorkspaceResponse
+	25, // 30: monorepo.MonorepoService.ConfigureSparseCheckout:output_type -> monorepo.SparseCheckoutResponse
+	27, // 31: monorepo.MonorepoService.DownloadPath:output_type -> monorepo.DownloadPathResponse
+	20, // [20:32] is the sub-list for method output_type
+	8,  // [8:20] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_monorepo_proto_init() }
@@ -1011,13 +1977,14 @@ func file_monorepo_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_monorepo_proto_rawDesc), len(file_monorepo_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   14,
+			NumEnums:      1,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_monorepo_proto_goTypes,
 		DependencyIndexes: file_monorepo_proto_depIdxs,
+		EnumInfos:         file_monorepo_proto_enumTypes,
 		MessageInfos:      file_monorepo_proto_msgTypes,
 	}.Build()
 	File_monorepo_proto = out.File

@@ -36,6 +36,23 @@ fi
 # Test protocol buffer generation
 echo "🔨 Testing protobuf generation..."
 if command -v protoc >/dev/null 2>&1; then
+    # Ensure protoc-gen-go tools are installed
+    echo "📦 Ensuring protoc-gen-go tools are available..."
+    
+    # Always install the tools to ensure they're available in CI
+    echo "Installing protoc-gen-go..."
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+    echo "Installing protoc-gen-go-grpc..."
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    
+    # Add Go bin directories to PATH for protoc plugins
+    export PATH="$PATH:$(go env GOPATH)/bin:$HOME/go/bin"
+    
+    # Verify tools are available
+    echo "🔍 Verifying protoc plugins..."
+    which protoc-gen-go || { echo "❌ protoc-gen-go not found"; exit 1; }
+    which protoc-gen-go-grpc || { echo "❌ protoc-gen-go-grpc not found"; exit 1; }
+    
     # Clean and regenerate
     npm run clean || true
     
@@ -45,6 +62,24 @@ if command -v protoc >/dev/null 2>&1; then
     # Test Go generation
     if npm run proto:generate:go; then
         echo "✅ Go protobuf generation successful"
+        
+        # Create go.mod if it doesn't exist
+        cd gen/go
+        if [ ! -f go.mod ]; then
+            echo "📝 Creating go.mod for generated protobuf files..."
+            cat > go.mod << EOF
+module github.com/nic/poon/poon-proto/gen/go
+
+go 1.23
+
+require (
+	google.golang.org/grpc v1.74.2
+	google.golang.org/protobuf v1.36.0
+)
+EOF
+            go mod tidy
+        fi
+        cd ../..
     else
         echo "❌ Go protobuf generation failed"
         exit 1
@@ -63,18 +98,13 @@ fi
 # Verify generated files exist
 echo "📋 Verifying generated files..."
 EXPECTED_FILES=(
-    "gen/monorepo.pb.go"
+    "gen/go/monorepo.pb.go"
+    "gen/go/monorepo_grpc.pb.go"
 )
 
 for file in "${EXPECTED_FILES[@]}"; do
     if [ -f "$file" ]; then
         echo "✅ $file exists"
-        # Move to go subdirectory if not already there
-        if [ ! -f "gen/go/$(basename $file)" ]; then
-            mkdir -p gen/go
-            mv "$file" "gen/go/"
-            echo "✅ Moved $file to gen/go/"
-        fi
     else
         echo "❌ $file missing"
         exit 1

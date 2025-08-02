@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package monorepo;
 
-option go_package = "github.com/nic/poon/poon-proto/gen";
+option go_package = "github.com/nic/poon/poon-proto/gen/go";
 
 // MonorepoService provides operations for the internet-scale monorepo
 service MonorepoService {
@@ -23,6 +23,18 @@ service MonorepoService {
   
   // CreateBranch creates a new branch
   rpc CreateBranch(CreateBranchRequest) returns (CreateBranchResponse);
+  
+  // Workspace operations
+  rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
+  rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
+  rpc DeleteWorkspace(DeleteWorkspaceRequest) returns (DeleteWorkspaceResponse);
+  
+  // Sparse checkout operations
+  rpc ConfigureSparseCheckout(SparseCheckoutRequest) returns (SparseCheckoutResponse);
+  
+  // Download operations
+  rpc DownloadPath(DownloadPathRequest) returns (DownloadPathResponse);
 }
 
 // Request to merge a patch
@@ -122,4 +134,94 @@ message CreateBranchResponse {
   string message = 2;
   string branch_name = 3;
   string commit_hash = 4;
+}
+
+// Workspace management messages
+message CreateWorkspaceRequest {
+  string name = 1;
+  repeated string tracked_paths = 2;
+  string base_branch = 3;
+  map<string, string> metadata = 4;
+}
+
+message CreateWorkspaceResponse {
+  bool success = 1;
+  string message = 2;
+  string workspace_id = 3;
+  string remote_url = 4;
+}
+
+message GetWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message GetWorkspaceResponse {
+  bool success = 1;
+  string message = 2;
+  WorkspaceInfo workspace = 3;
+}
+
+message UpdateWorkspaceRequest {
+  string workspace_id = 1;
+  repeated string tracked_paths = 2;
+  map<string, string> metadata = 3;
+}
+
+message UpdateWorkspaceResponse {
+  bool success = 1;
+  string message = 2;
+  WorkspaceInfo workspace = 3;
+}
+
+message DeleteWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message DeleteWorkspaceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message WorkspaceInfo {
+  string id = 1;
+  string name = 2;
+  repeated string tracked_paths = 3;
+  string created_at = 4;
+  string last_sync = 5;
+  WorkspaceStatus status = 6;
+  map<string, string> metadata = 7;
+}
+
+enum WorkspaceStatus {
+  ACTIVE = 0;
+  SYNCING = 1;
+  ERROR = 2;
+  SUSPENDED = 3;
+}
+
+// Sparse checkout messages
+message SparseCheckoutRequest {
+  repeated string paths = 1;
+  string target_dir = 2;
+  string workspace_id = 3;
+}
+
+message SparseCheckoutResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string configured_paths = 3;
+}
+
+// Download messages
+message DownloadPathRequest {
+  string path = 1;
+  string branch = 2;
+  string format = 3; // "tar", "zip", etc.
+}
+
+message DownloadPathResponse {
+  bool success = 1;
+  string message = 2;
+  bytes content = 3;
+  string filename = 4;
 }

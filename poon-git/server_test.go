@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -45,32 +43,11 @@ func TestGitServerImplementation(t *testing.T) {
 		assert.Contains(t, names, "config")
 	})
 
-	t.Run("JSON Response Structures", func(t *testing.T) {
-		// Test JSON response structures
-		workspaceReq := WorkspaceRequest{Name: "test-workspace"}
-		assert.Equal(t, "test-workspace", workspaceReq.Name)
-
-		workspaceResp := WorkspaceResponse{
-			Success:     true,
-			Message:     "Test message",
-			RemoteURL:   "http://localhost:3000/test.git",
-			WorkspaceID: "test-id",
-		}
-		assert.True(t, workspaceResp.Success)
-		assert.Contains(t, workspaceResp.RemoteURL, ".git")
-	})
-
-	t.Run("Directory Item Structure", func(t *testing.T) {
-		// Test directory item structures
-		item := DirectoryItem{
-			Name:    "test.txt",
-			Type:    "file",
-			Size:    100,
-			ModTime: time.Now().Unix(),
-		}
-		assert.Equal(t, "test.txt", item.Name)
-		assert.Equal(t, "file", item.Type)
-		assert.Equal(t, int64(100), item.Size)
+	t.Run("Git Server Routes", func(t *testing.T) {
+		// Test that GitServer can set up routes
+		gitServer := NewGitServer()
+		mux := gitServer.setupRoutes()
+		assert.NotNil(t, mux)
 	})
 }
 
@@ -160,22 +137,13 @@ func TestHttpServerErrorHandling(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("API Calls Fail Gracefully", func(t *testing.T) {
-		resp, err := client.Get(baseURL + "/api/ls/")
+	t.Run("Non-existent endpoints return 404", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/api/nonexistent")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// Should return error response, not crash
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(body, &result); err == nil {
-			// If it's valid JSON, it should contain an error field
-			if errorMsg, ok := result["error"]; ok {
-				assert.NotEmpty(t, errorMsg)
-			}
-		}
+		// Should return 404 since we removed all API endpoints except health
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 }
 

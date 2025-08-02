@@ -92,7 +92,7 @@ func runCommand(name string, args ...string) error {
 var rootCmd = &cobra.Command{
 	Use:   "poon",
 	Short: "Poon CLI - Internet-scale monorepo client",
-	Long:  `A CLI tool for interacting with the Poon monorepo system via gRPC.`,
+	Long:  `Poon CLI - A CLI tool for interacting with the Poon monorepo system via gRPC.`,
 }
 
 var startCmd = &cobra.Command{
@@ -134,6 +134,14 @@ var startCmd = &cobra.Command{
 			fmt.Printf("Warning: failed to create .gitignore: %v\n", err)
 		}
 
+		// Configure git identity (required for CI environments)
+		if err := runCommand("git", "config", "user.email", "poon@example.com"); err != nil {
+			return fmt.Errorf("failed to configure git user email: %v", err)
+		}
+		if err := runCommand("git", "config", "user.name", "Poon CI"); err != nil {
+			return fmt.Errorf("failed to configure git user name: %v", err)
+		}
+
 		// Initial commit
 		if err := runCommand("git", "add", ".gitignore"); err != nil {
 			return fmt.Errorf("failed to add .gitignore: %v", err)
@@ -170,6 +178,14 @@ var trackCmd = &cobra.Command{
 
 		if err := connectToServer(); err != nil {
 			return err
+		}
+
+		// Test server connectivity first
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err = client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to server: %v", err)
 		}
 
 		for _, path := range args {
@@ -223,6 +239,15 @@ var pushCmd = &cobra.Command{
 			return err
 		}
 
+		// Test server connectivity by attempting to get branches
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err = client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to server: %v", err)
+		}
+
 		// TODO: Calculate diffs for each tracked path
 		// TODO: Generate patches
 		// TODO: Send patches to poon-server for merging
@@ -243,6 +268,15 @@ var syncCmd = &cobra.Command{
 
 		if err := connectToServer(); err != nil {
 			return err
+		}
+
+		// Test server connectivity by attempting to get branches
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err = client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to server: %v", err)
 		}
 
 		// TODO: Fetch latest state for tracked paths
@@ -371,21 +405,280 @@ var applyCmd = &cobra.Command{
 	},
 }
 
+var branchesCmd = &cobra.Command{
+	Use:   "branches",
+	Short: "List available branches",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := client.GetBranches(ctx, &pb.BranchesRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to get branches: %v", err)
+		}
+
+		fmt.Printf("Available branches:\n")
+		for _, branch := range resp.Branches {
+			if branch == resp.DefaultBranch {
+				fmt.Printf("* %s (default)\n", branch)
+			} else {
+				fmt.Printf("  %s\n", branch)
+			}
+		}
+
+		return nil
+	},
+}
+
+var createBranchCmd = &cobra.Command{
+	Use:   "create-branch <name> [from-branch]",
+	Short: "Create a new branch",
+	Args:  cobra.RangeArgs(1, 2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		branchName := args[0]
+		fromBranch := "main"
+		if len(args) > 1 {
+			fromBranch = args[1]
+		}
+
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := client.CreateBranch(ctx, &pb.CreateBranchRequest{
+			Name:       branchName,
+			FromBranch: fromBranch,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create branch: %v", err)
+		}
+
+		if resp.Success {
+			fmt.Printf("✓ %s\n", resp.Message)
+			fmt.Printf("Branch: %s\n", resp.BranchName)
+			fmt.Printf("Commit: %s\n", resp.CommitHash)
+		} else {
+			fmt.Printf("✗ Failed to create branch: %s\n", resp.Message)
+		}
+
+		return nil
+	},
+}
+
+var historyCmd = &cobra.Command{
+	Use:   "history <file>",
+	Short: "Show file history",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := client.GetFileHistory(ctx, &pb.FileHistoryRequest{
+			Path:  args[0],
+			Limit: 10,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get file history: %v", err)
+		}
+
+		fmt.Printf("History for %s:\n", args[0])
+		for _, commit := range resp.Commits {
+			fmt.Printf("\nCommit: %s\n", commit.Hash)
+			fmt.Printf("Author: %s\n", commit.Author)
+			fmt.Printf("Date: %s\n", time.Unix(commit.Timestamp, 0).Format(time.RFC3339))
+			fmt.Printf("Message: %s\n", commit.Message)
+		}
+
+		return nil
+	},
+}
+
+var workspaceCmd = &cobra.Command{
+	Use:   "workspace",
+	Short: "Workspace management commands",
+}
+
+var createWorkspaceCmd = &cobra.Command{
+	Use:   "create <name>",
+	Short: "Create a new workspace",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := client.CreateWorkspace(ctx, &pb.CreateWorkspaceRequest{
+			Name: args[0],
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create workspace: %v", err)
+		}
+
+		if resp.Success {
+			fmt.Printf("✓ %s\n", resp.Message)
+			fmt.Printf("Workspace ID: %s\n", resp.WorkspaceId)
+			fmt.Printf("Remote URL: %s\n", resp.RemoteUrl)
+		} else {
+			fmt.Printf("✗ Failed to create workspace: %s\n", resp.Message)
+		}
+
+		return nil
+	},
+}
+
+var getWorkspaceCmd = &cobra.Command{
+	Use:   "get <workspace-id>",
+	Short: "Get workspace information",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := client.GetWorkspace(ctx, &pb.GetWorkspaceRequest{
+			WorkspaceId: args[0],
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get workspace: %v", err)
+		}
+
+		if resp.Success {
+			ws := resp.Workspace
+			fmt.Printf("Workspace Information:\n")
+			fmt.Printf("ID: %s\n", ws.Id)
+			fmt.Printf("Name: %s\n", ws.Name)
+			fmt.Printf("Status: %s\n", ws.Status)
+			fmt.Printf("Created: %s\n", ws.CreatedAt)
+			fmt.Printf("Last Sync: %s\n", ws.LastSync)
+			fmt.Printf("Tracked Paths (%d):\n", len(ws.TrackedPaths))
+			for _, path := range ws.TrackedPaths {
+				fmt.Printf("  %s\n", path)
+			}
+		} else {
+			fmt.Printf("✗ %s\n", resp.Message)
+		}
+
+		return nil
+	},
+}
+
+var sparseCheckoutCmd = &cobra.Command{
+	Use:   "sparse-checkout <path1> [path2...]",
+	Short: "Configure sparse checkout",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := client.ConfigureSparseCheckout(ctx, &pb.SparseCheckoutRequest{
+			Paths: args,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to configure sparse checkout: %v", err)
+		}
+
+		if resp.Success {
+			fmt.Printf("✓ %s\n", resp.Message)
+			fmt.Printf("Configured paths:\n")
+			for _, path := range resp.ConfiguredPaths {
+				fmt.Printf("  %s\n", path)
+			}
+		} else {
+			fmt.Printf("✗ Failed to configure sparse checkout: %s\n", resp.Message)
+		}
+
+		return nil
+	},
+}
+
+var downloadCmd = &cobra.Command{
+	Use:   "download <path>",
+	Short: "Download path as archive",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := connectToServer(); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		resp, err := client.DownloadPath(ctx, &pb.DownloadPathRequest{
+			Path:   args[0],
+			Format: "tar.gz",
+		})
+		if err != nil {
+			return fmt.Errorf("failed to download path: %v", err)
+		}
+
+		if resp.Success {
+			fmt.Printf("✓ %s\n", resp.Message)
+			fmt.Printf("Filename: %s\n", resp.Filename)
+			fmt.Printf("Content size: %d bytes\n", len(resp.Content))
+
+			// Write content to file
+			if err := os.WriteFile(resp.Filename, resp.Content, 0644); err != nil {
+				return fmt.Errorf("failed to write download file: %v", err)
+			}
+			fmt.Printf("Saved to: %s\n", resp.Filename)
+		} else {
+			fmt.Printf("✗ Failed to download: %s\n", resp.Message)
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&serverAddr, "server", "localhost:50051", "gRPC server address")
 	rootCmd.PersistentFlags().StringVar(&gitServerAddr, "git-server", "localhost:3000", "Git server address")
 
-	// New workflow commands
+	// Workspace workflow commands
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(trackCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(statusCmd)
 
-	// Legacy commands
+	// File and directory operations
 	rootCmd.AddCommand(lsCmd)
 	rootCmd.AddCommand(catCmd)
+	rootCmd.AddCommand(historyCmd)
+
+	// Branch operations
+	rootCmd.AddCommand(branchesCmd)
+	rootCmd.AddCommand(createBranchCmd)
+
+	// Workspace management
+	workspaceCmd.AddCommand(createWorkspaceCmd)
+	workspaceCmd.AddCommand(getWorkspaceCmd)
+	rootCmd.AddCommand(workspaceCmd)
+
+	// Advanced operations
 	rootCmd.AddCommand(applyCmd)
+	rootCmd.AddCommand(sparseCheckoutCmd)
+	rootCmd.AddCommand(downloadCmd)
 }
 
 func main() {
