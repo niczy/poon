@@ -95,8 +95,12 @@ func TestCLIWorkflow(t *testing.T) {
 	t.Run("Git Integration", func(t *testing.T) {
 		// Test git status
 		result := workspace.RunGitCommand(t, "status")
-		result.AssertSuccess(t).
-			AssertContains(t, "On branch main")
+		result.AssertSuccess(t)
+		
+		// Accept both "main" and "master" branch names
+		if !strings.Contains(result.Output, "On branch main") && !strings.Contains(result.Output, "On branch master") {
+			t.Errorf("Expected git status to contain 'On branch main' or 'On branch master', got: %s", result.Output)
+		}
 
 		// Test git log
 		result = workspace.RunGitCommand(t, "log", "--oneline")
