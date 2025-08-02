@@ -1,0 +1,20 @@
+{
+  "name": "poon-proto",
+  "version": "1.0.0",
+  "description": "Protocol buffer definitions for the Poon monorepo system",
+  "main": "index.js",
+  "scripts": {
+    "proto:generate": "npm run proto:generate:go && npm run proto:generate:js",
+    "proto:generate:go": "protoc --go_out=gen --go_opt=paths=source_relative --go-grpc_out=gen --go-grpc_opt=paths=source_relative --proto_path=. monorepo.proto",
+    "proto:generate:js": "protoc --js_out=import_style=commonjs,binary:gen --grpc-web_out=import_style=commonjs,mode=grpcwebtext:gen --proto_path=. monorepo.proto",
+    "clean": "rm -rf gen"
+  },
+  "devDependencies": {
+    "@grpc/grpc-js": "^1.13.4",
+    "@grpc/proto-loader": "^0.8.0",
+    "grpc-tools": "^1.13.0",
+    "grpc-web": "^1.5.0",
+    "protoc-gen-grpc-web": "^1.4.0",
+    "ts-protoc-gen": "^0.15.0"
+  }
+}

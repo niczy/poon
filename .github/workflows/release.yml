@@ -1,0 +1,132 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+          - goos: windows
+            goarch: amd64
+            suffix: windows-amd64.exe
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: |
+          poon-web/package-lock.json
+          poon-proto/package-lock.json
+
+    - name: Install Protocol Buffers compiler
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+
+    - name: Install Go protobuf plugins
+      run: |
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+    - name: Generate protobuf files
+      run: |
+        cd poon-proto
+        mkdir -p gen/go gen/js gen/python gen/ts
+        protoc --go_out=gen --go_opt=paths=source_relative --go-grpc_out=gen --go-grpc_opt=paths=source_relative --proto_path=. monorepo.proto
+        mv gen/monorepo*.pb.go gen/go/
+
+    - name: Build Go binaries
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        # Build poon-server
+        cd poon-server
+        go build -ldflags="-s -w" -o poon-server-${{ matrix.suffix }} .
+        cd ..
+        
+        # Build poon-git
+        cd poon-git
+        go build -ldflags="-s -w" -o poon-git-${{ matrix.suffix }} .
+        cd ..
+        
+        # Build poon-cli
+        cd poon-cli
+        go build -ldflags="-s -w" -o poon-cli-${{ matrix.suffix }} .
+        cd ..
+
+    - name: Build poon-web (Linux amd64 only)
+      if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+      run: |
+        cd poon-proto && npm ci && cd ..
+        cd poon-web && npm ci && npm run build && cd ..
+
+    - name: Package release artifacts
+      run: |
+        mkdir -p release
+        
+        # Copy Go binaries
+        cp poon-server/poon-server-${{ matrix.suffix }} release/
+        cp poon-git/poon-git-${{ matrix.suffix }} release/
+        cp poon-cli/poon-cli-${{ matrix.suffix }} release/
+        
+        # Copy web build (if available)
+        if [ -d "poon-web/.next" ]; then
+          cp -r poon-web/.next release/poon-web-build
+          cp -r poon-web/public release/poon-web-public
+          cp poon-web/package.json release/poon-web-package.json
+        fi
+        
+        # Copy protobuf files
+        cp -r poon-proto/gen release/poon-proto-gen
+        
+        # Create archive
+        tar -czf poon-${{ matrix.suffix }}.tar.gz -C release .
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: poon-${{ matrix.suffix }}
+        path: poon-${{ matrix.suffix }}.tar.gz
+
+    - name: Upload to release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: poon-${{ matrix.suffix }}.tar.gz
+        asset_name: poon-${{ matrix.suffix }}.tar.gz
+        asset_content_type: application/gzip

@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package monorepo;
+
+option go_package = "github.com/nic/poon/poon-proto/gen";
+
+// MonorepoService provides operations for the internet-scale monorepo
+service MonorepoService {
+  // MergePatch applies a patch to the monorepo
+  rpc MergePatch(MergePatchRequest) returns (MergePatchResponse);
+  
+  // ReadDirectory lists the contents of a directory
+  rpc ReadDirectory(ReadDirectoryRequest) returns (ReadDirectoryResponse);
+  
+  // ReadFile returns the contents of a file
+  rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+  
+  // GetFileHistory returns the commit history for a file
+  rpc GetFileHistory(FileHistoryRequest) returns (FileHistoryResponse);
+  
+  // GetBranches returns available branches
+  rpc GetBranches(BranchesRequest) returns (BranchesResponse);
+  
+  // CreateBranch creates a new branch
+  rpc CreateBranch(CreateBranchRequest) returns (CreateBranchResponse);
+}
+
+// Request to merge a patch
+message MergePatchRequest {
+  string path = 1;        // Target path in the monorepo
+  bytes patch = 2;        // The patch content (unified diff format)
+  string message = 3;     // Commit message
+  string author = 4;      // Author information
+  string branch = 5;      // Target branch (default: main)
+}
+
+// Response from merging a patch
+message MergePatchResponse {
+  bool success = 1;
+  string message = 2;
+  string commit_hash = 3;
+  repeated string conflicts = 4;
+}
+
+// Request to read a directory
+message ReadDirectoryRequest {
+  string path = 1;        // Directory path
+  string branch = 2;      // Branch name (default: main)
+  bool recursive = 3;     // Whether to list recursively
+}
+
+// Response containing directory contents
+message ReadDirectoryResponse {
+  repeated DirectoryItem items = 1;
+}
+
+// A single directory item
+message DirectoryItem {
+  string name = 1;
+  bool is_dir = 2;
+  int64 size = 3;
+  int64 mod_time = 4;     // Unix timestamp
+  string hash = 5;        // Git object hash
+}
+
+// Request to read a file
+message ReadFileRequest {
+  string path = 1;        // File path
+  string branch = 2;      // Branch name (default: main)
+  string revision = 3;    // Specific revision/commit hash
+}
+
+// Response containing file contents
+message ReadFileResponse {
+  bytes content = 1;
+  string hash = 2;        // Git object hash
+  int64 size = 3;
+}
+
+// Request for file history
+message FileHistoryRequest {
+  string path = 1;        // File path
+  string branch = 2;      // Branch name (default: main)
+  int32 limit = 3;        // Maximum number of commits to return
+}
+
+// Response containing file history
+message FileHistoryResponse {
+  repeated Commit commits = 1;
+}
+
+// A git commit
+message Commit {
+  string hash = 1;
+  string author = 2;
+  string message = 3;
+  int64 timestamp = 4;
+  repeated string changed_files = 5;
+}
+
+// Request for available branches
+message BranchesRequest {
+  // No fields needed for basic branch listing
+}
+
+// Response containing branches
+message BranchesResponse {
+  repeated string branches = 1;
+  string default_branch = 2;
+}
+
+// Request to create a new branch
+message CreateBranchRequest {
+  string name = 1;        // New branch name
+  string from_branch = 2; // Source branch (default: main)
+  string from_commit = 3; // Specific commit to branch from
+}
+
+// Response from creating a branch
+message CreateBranchResponse {
+  bool success = 1;
+  string message = 2;
+  string branch_name = 3;
+  string commit_hash = 4;
+}

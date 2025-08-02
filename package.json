@@ -1,0 +1,27 @@
+{
+  "name": "poon-monorepo",
+  "version": "1.0.0",
+  "description": "Internet-scale monorepo system with gRPC server, git-compatible server, and CLI",
+  "private": true,
+  "workspaces": [
+    "poon-proto"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces && go build ./...",
+    "test": "npm run test --workspaces && go test ./...",
+    "lint": "npm run lint --workspaces",
+    "dev:git-server": "cd poon-git && go run .",
+    "dev:grpc-server": "cd poon-server && go run .",
+    "dev:cli": "cd poon-cli && go run .",
+    "proto:generate": "npm run proto:generate --workspace=poon-proto",
+    "clean": "npm run clean --workspaces && go clean ./..."
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

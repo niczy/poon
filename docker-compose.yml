@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  poon-server:
+    build:
+      context: .
+      dockerfile: poon-server/Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      - PORT=50051
+      - REPO_ROOT=/app/data
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - poon-network
+
+  poon-git:
+    build:
+      context: .
+      dockerfile: poon-git/Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+      - GRPC_SERVER=poon-server:50051
+    depends_on:
+      - poon-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - poon-network
+
+  poon-web:
+    build:
+      context: .
+      dockerfile: poon-web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_GRPC_SERVER=http://localhost:8080
+    depends_on:
+      - poon-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - poon-network
+
+  # gRPC-Web proxy for browser compatibility
+  grpc-web-proxy:
+    image: improbable/grpc-web:latest
+    ports:
+      - "8080:8080"
+    command:
+      - "--backend_addr=poon-server:50051"
+      - "--run_tls_server=false"
+      - "--allow_all_origins"
+    depends_on:
+      - poon-server
+    networks:
+      - poon-network
+
+networks:
+  poon-network:
+    driver: bridge
+
+volumes:
+  poon-data:
+    driver: local

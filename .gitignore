@@ -1,0 +1,85 @@
+# Root project .gitignore for Poon Monorepo System
+
+# Go binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Build artifacts from all subdirectories
+poon-git/poon-git
+poon-server/poon-server
+poon-cli/poon-cli
+poon-cli/poon
+poon-tests/poon-test
+poon-tests/poon
+
+# Node.js dependencies and build artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.pnp
+.pnp.js
+
+# Next.js build output (poon-web)
+poon-web/.next/
+poon-web/out/
+poon-web/dist/
+poon-web/*.tsbuildinfo
+
+# Environment files
+.env
+.env*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs from all components
+*.log
+logs/
+poon-tests/server-start.log
+
+# Test artifacts and workspaces
+poon-tests/test-workspace*/
+poon-tests/.poon/
+poon-tests/workspace/
+poon-tests/monorepo/
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+
+# Package manager lockfiles (keep main ones, ignore duplicates)
+# Note: We keep the main package-lock.json files but ignore duplicates
+**/package-lock.json.bak
+**/yarn.lock.bak
+
+# Deployment artifacts
+.vercel/
+
+# Generated protobuf files (optional - uncomment to ignore)
+# poon-proto/gen/
