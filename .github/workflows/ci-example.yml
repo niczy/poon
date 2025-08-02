@@ -33,17 +33,57 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y protobuf-compiler
     
+    # RECOMMENDED: Use Makefile targets for reliability
     - name: Set up CI environment
       run: make ci-setup
     
     - name: Build all components
       run: make ci-build
     
-    - name: Run tests
+    - name: Run tests (using Makefile)
       run: make ci-test
 
-  # Alternative: Use individual targets for better granularity
-  build-and-test-separate:
+  # Alternative: Build and test individual components
+  component-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [poon-git, poon-server, poon-cli, poon-web]
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+      if: matrix.component != 'poon-web'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+      if: matrix.component == 'poon-web'
+    
+    - name: Install protoc
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+    
+    - name: Install protoc-gen-go tools
+      run: make install-protoc-tools
+    
+    - name: Generate protobuf files
+      run: make proto
+    
+    - name: Test ${{ matrix.component }}
+      run: |
+        cd ${{ matrix.component }}
+        chmod +x scripts/run_test.sh
+        ./scripts/run_test.sh
+
+  # Minimal approach - just use the script but ensure tools are available
+  script-based-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -64,14 +104,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y protobuf-compiler
     
+    # Ensure protoc-gen-go tools are available globally
     - name: Install protoc-gen-go tools
-      run: make install-protoc-tools
+      run: |
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+        echo "$HOME/go/bin" >> $GITHUB_PATH
     
-    - name: Generate protobuf files
-      run: make proto
-    
-    - name: Build components
-      run: make build
-    
-    - name: Run tests
-      run: make test
+    - name: Test poon-proto
+      run: |
+        cd poon-proto
+        chmod +x scripts/run_test.sh
+        ./scripts/run_test.sh

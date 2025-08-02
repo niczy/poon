@@ -1,6 +1,6 @@
 # Poon Monorepo System Makefile
 
-.PHONY: all build test clean install proto help
+.PHONY: all build test clean install proto help ci-setup ci-test ci-build ci-test-component
 
 # Default target
 all: proto build test
@@ -23,6 +23,7 @@ help:
 	@echo "make ci-setup         - Set up CI environment"
 	@echo "make ci-build         - Build for CI"
 	@echo "make ci-test          - Run tests in CI"
+	@echo "make ci-test-component COMPONENT=name - Test specific component in CI"
 	@echo ""
 	@echo "make help             - Show this help message"
 
@@ -146,7 +147,6 @@ format:
 	cd poon-web && npm run lint --fix || true
 
 # CI/CD targets
-.PHONY: ci-setup ci-test ci-build
 ci-setup:
 	@echo "Setting up CI environment..."
 	@echo "Installing protoc tools..."
@@ -166,6 +166,19 @@ ci-test: ci-setup
 	@echo "Running tests in CI..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
 	make test
+
+# Test a specific component in CI
+ci-test-component:
+	@if [ -z "$(COMPONENT)" ]; then \
+		echo "Error: COMPONENT variable not set"; \
+		echo "Usage: make ci-test-component COMPONENT=poon-proto"; \
+		exit 1; \
+	fi
+	@echo "Testing component: $(COMPONENT)"
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd $(COMPONENT) && \
+	chmod +x scripts/run_test.sh && \
+	./scripts/run_test.sh
 
 # Development shortcuts
 server: proto

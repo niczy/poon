@@ -36,8 +36,19 @@ fi
 # Test protocol buffer generation
 echo "🔨 Testing protobuf generation..."
 if command -v protoc >/dev/null 2>&1; then
-    # Add Go bin to PATH for protoc plugins
-    export PATH="$PATH:$HOME/go/bin"
+    # Ensure protoc-gen-go tools are installed
+    echo "📦 Ensuring protoc-gen-go tools are available..."
+    if ! command -v protoc-gen-go >/dev/null 2>&1; then
+        echo "Installing protoc-gen-go..."
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+    fi
+    if ! command -v protoc-gen-go-grpc >/dev/null 2>&1; then
+        echo "Installing protoc-gen-go-grpc..."
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    fi
+    
+    # Add Go bin directories to PATH for protoc plugins
+    export PATH="$PATH:$(go env GOPATH)/bin:$HOME/go/bin"
     
     # Clean and regenerate
     npm run clean || true
@@ -48,6 +59,24 @@ if command -v protoc >/dev/null 2>&1; then
     # Test Go generation
     if npm run proto:generate:go; then
         echo "✅ Go protobuf generation successful"
+        
+        # Create go.mod if it doesn't exist
+        cd gen/go
+        if [ ! -f go.mod ]; then
+            echo "📝 Creating go.mod for generated protobuf files..."
+            cat > go.mod << EOF
+module github.com/nic/poon/poon-proto/gen/go
+
+go 1.23
+
+require (
+	google.golang.org/grpc v1.74.2
+	google.golang.org/protobuf v1.36.0
+)
+EOF
+            go mod tidy
+        fi
+        cd ../..
     else
         echo "❌ Go protobuf generation failed"
         exit 1
