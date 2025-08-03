@@ -6,11 +6,13 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	pb "github.com/nic/poon/poon-proto/gen/go"
 	"github.com/nic/poon/poon-server/storage"
 	"google.golang.org/grpc"
@@ -18,10 +20,11 @@ import (
 
 type server struct {
 	pb.UnimplementedMonorepoServiceServer
-	repoRoot   string
-	workspaces map[string]*Workspace
-	mu         sync.RWMutex
-	repository storage.Repository
+	repoRoot      string
+	workspaceRoot string
+	workspaces    map[string]*Workspace
+	mu            sync.RWMutex
+	repository    storage.Repository
 }
 
 type Workspace struct {
@@ -32,6 +35,7 @@ type Workspace struct {
 	LastSync     time.Time
 	Status       pb.WorkspaceStatus
 	Metadata     map[string]string
+	GitRepoPath  string
 }
 
 func validatePath(path string) error {
@@ -45,6 +49,170 @@ func validatePath(path string) error {
 	}
 
 	return nil
+}
+
+func (s *server) initializeWorkspaceGitRepo(ctx context.Context, gitRepoPath string, trackedPaths []string) error {
+	// Create git repository directory
+	if err := os.MkdirAll(gitRepoPath, 0755); err != nil {
+		return fmt.Errorf("failed to create git repo directory: %v", err)
+	}
+
+	// Initialize git repository
+	cmd := exec.Command("git", "init")
+	cmd.Dir = gitRepoPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to initialize git repository: %v", err)
+	}
+
+	// Configure git user (required for commits)
+	cmd = exec.Command("git", "config", "user.email", "poon-server@example.com")
+	cmd.Dir = gitRepoPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to configure git user email: %v", err)
+	}
+
+	cmd = exec.Command("git", "config", "user.name", "Poon Server")
+	cmd.Dir = gitRepoPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to configure git user name: %v", err)
+	}
+
+	// Get current version from repository
+	currentVersion, err := s.repository.GetCurrentVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current version: %v", err)
+	}
+
+	if currentVersion == 0 {
+		return fmt.Errorf("no repository versions exist - cannot create workspace")
+	}
+
+	// Copy tracked paths from repository to git repo
+	for _, path := range trackedPaths {
+		if err := s.copyPathToGitRepo(ctx, currentVersion, path, gitRepoPath); err != nil {
+			return fmt.Errorf("failed to copy path %s: %v", path, err)
+		}
+	}
+
+	// Create .poon-workspace metadata file
+	metadataContent := fmt.Sprintf(`# Poon Workspace Metadata
+# This file is managed by poon-server
+workspace_version: 1
+tracked_paths:
+%s
+created_at: %s
+`, formatTrackedPaths(trackedPaths), time.Now().Format(time.RFC3339))
+
+	metadataPath := filepath.Join(gitRepoPath, ".poon-workspace")
+	if err := os.WriteFile(metadataPath, []byte(metadataContent), 0644); err != nil {
+		return fmt.Errorf("failed to create metadata file: %v", err)
+	}
+
+	// Create .gitignore
+	gitignoreContent := `# Poon workspace files
+.poon/
+*.tmp
+.DS_Store
+`
+	gitignorePath := filepath.Join(gitRepoPath, ".gitignore")
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+		return fmt.Errorf("failed to create .gitignore: %v", err)
+	}
+
+	// Add all files to git
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = gitRepoPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to add files to git: %v", err)
+	}
+
+	// Create initial commit
+	commitMsg := fmt.Sprintf("Initial workspace commit\n\nTracked paths:\n%s", formatTrackedPaths(trackedPaths))
+	cmd = exec.Command("git", "commit", "-m", commitMsg)
+	cmd.Dir = gitRepoPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create initial commit: %v", err)
+	}
+
+	log.Printf("Successfully initialized git repository at %s with %d tracked paths", gitRepoPath, len(trackedPaths))
+	return nil
+}
+
+func (s *server) copyPathToGitRepo(ctx context.Context, version int64, srcPath string, gitRepoPath string) error {
+	// Check if path is a directory or file
+	_, err := s.repository.ReadDirectory(ctx, version, srcPath)
+	if err != nil {
+		// Try as a file
+		content, err := s.repository.ReadFile(ctx, version, srcPath)
+		if err != nil {
+			return fmt.Errorf("path %s not found as file or directory", srcPath)
+		}
+
+		// Create target directory if needed
+		targetPath := filepath.Join(gitRepoPath, srcPath)
+		targetDir := filepath.Dir(targetPath)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %v", targetDir, err)
+		}
+
+		// Write file content
+		if err := os.WriteFile(targetPath, content, 0644); err != nil {
+			return fmt.Errorf("failed to write file %s: %v", targetPath, err)
+		}
+
+		log.Printf("Copied file: %s", srcPath)
+		return nil
+	}
+
+	// It's a directory, copy recursively
+	return s.copyDirectoryToGitRepo(ctx, version, srcPath, gitRepoPath)
+}
+
+func (s *server) copyDirectoryToGitRepo(ctx context.Context, version int64, srcPath string, gitRepoPath string) error {
+	entries, err := s.repository.ReadDirectory(ctx, version, srcPath)
+	if err != nil {
+		return err
+	}
+
+	// Create target directory
+	targetDir := filepath.Join(gitRepoPath, srcPath)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %v", targetDir, err)
+	}
+
+	// Copy each entry
+	for _, entry := range entries {
+		entryPath := filepath.Join(srcPath, entry.Name)
+
+		if entry.Type == storage.ObjectTypeTree {
+			// Recursively copy subdirectory
+			if err := s.copyDirectoryToGitRepo(ctx, version, entryPath, gitRepoPath); err != nil {
+				return err
+			}
+		} else if entry.Type == storage.ObjectTypeBlob {
+			// Copy file
+			content, err := s.repository.ReadFile(ctx, version, entryPath)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %v", entryPath, err)
+			}
+
+			targetPath := filepath.Join(gitRepoPath, entryPath)
+			if err := os.WriteFile(targetPath, content, 0644); err != nil {
+				return fmt.Errorf("failed to write file %s: %v", targetPath, err)
+			}
+		}
+	}
+
+	log.Printf("Copied directory: %s (%d entries)", srcPath, len(entries))
+	return nil
+}
+
+func formatTrackedPaths(paths []string) string {
+	result := ""
+	for _, path := range paths {
+		result += fmt.Sprintf("  - %s\n", path)
+	}
+	return strings.TrimSuffix(result, "\n")
 }
 
 func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb.MergePatchResponse, error) {
@@ -194,29 +362,62 @@ func (s *server) CreateBranch(ctx context.Context, req *pb.CreateBranchRequest) 
 }
 
 func (s *server) CreateWorkspace(ctx context.Context, req *pb.CreateWorkspaceRequest) (*pb.CreateWorkspaceResponse, error) {
-	log.Printf("Creating workspace: %s", req.Name)
+	log.Printf("Creating workspace with tracked paths: %v", req.TrackedPaths)
+
+	// Generate UUID for workspace
+	workspaceID := uuid.New().String()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	workspaceID := fmt.Sprintf("ws_%s_%d", req.Name, time.Now().Unix())
+	// Create workspace directory
+	workspaceDir := filepath.Join(s.workspaceRoot, workspaceID)
+	if err := os.MkdirAll(workspaceDir, 0755); err != nil {
+		return &pb.CreateWorkspaceResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to create workspace directory: %v", err),
+		}, nil
+	}
+
+	// Initialize git repository
+	gitRepoPath := filepath.Join(workspaceDir, "repo")
+	if err := s.initializeWorkspaceGitRepo(ctx, gitRepoPath, req.TrackedPaths); err != nil {
+		// Clean up on failure
+		os.RemoveAll(workspaceDir)
+		return &pb.CreateWorkspaceResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to initialize git repository: %v", err),
+		}, nil
+	}
+
+	// Create workspace metadata
 	workspace := &Workspace{
 		ID:           workspaceID,
-		Name:         req.Name,
+		Name:         workspaceID, // Use UUID as name
 		TrackedPaths: req.TrackedPaths,
 		CreatedAt:    time.Now(),
 		LastSync:     time.Now(),
 		Status:       pb.WorkspaceStatus_ACTIVE,
 		Metadata:     req.Metadata,
+		GitRepoPath:  gitRepoPath,
 	}
 
 	s.workspaces[workspaceID] = workspace
 
+	// Generate remote URL for poon-git server
+	gitServerPort := os.Getenv("GIT_SERVER_PORT")
+	if gitServerPort == "" {
+		gitServerPort = "3000"
+	}
+	remoteURL := fmt.Sprintf("http://localhost:%s/%s.git", gitServerPort, workspaceID)
+
+	log.Printf("Successfully created workspace %s with git repo at %s", workspaceID, gitRepoPath)
+
 	return &pb.CreateWorkspaceResponse{
 		Success:     true,
-		Message:     fmt.Sprintf("Workspace '%s' created successfully", req.Name),
+		Message:     fmt.Sprintf("Workspace created successfully with %d tracked paths", len(req.TrackedPaths)),
 		WorkspaceId: workspaceID,
-		RemoteUrl:   fmt.Sprintf("http://localhost:3000/%s.git", req.Name),
+		RemoteUrl:   remoteURL,
 	}, nil
 }
 
@@ -355,9 +556,41 @@ func main() {
 		repoRoot = "."
 	}
 
+	workspaceRoot := os.Getenv("WORKSPACE_ROOT")
+	if workspaceRoot == "" {
+		// Use a temporary directory for workspaces
+		var err error
+		workspaceRoot, err = os.MkdirTemp("", "poon-workspaces-*")
+		if err != nil {
+			log.Fatalf("failed to create temporary workspace directory: %v", err)
+		}
+		log.Printf("Using temporary workspace directory: %s", workspaceRoot)
+	} else {
+		// Ensure workspace root directory exists if explicitly set
+		if err := os.MkdirAll(workspaceRoot, 0755); err != nil {
+			log.Fatalf("failed to create workspace root directory: %v", err)
+		}
+	}
+
 	// Initialize storage backend (in-memory for now)
 	backend := storage.NewMemoryBackend()
 	repository := storage.NewRepository(backend)
+
+	// Create initial repository version from filesystem if it exists and is empty
+	currentVersion, err := repository.GetCurrentVersion(context.Background())
+	if err != nil {
+		log.Fatalf("failed to get current version: %v", err)
+	}
+
+	if currentVersion == 0 {
+		// Create initial commit from filesystem
+		log.Printf("Creating initial repository version from filesystem: %s", repoRoot)
+		_, err := repository.CreateCommitFromFileSystem(context.Background(), repoRoot, "poon-server@example.com", "Initial repository commit")
+		if err != nil {
+			log.Fatalf("failed to create initial repository version: %v", err)
+		}
+		log.Printf("✓ Initial repository version created successfully")
+	}
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -366,13 +599,15 @@ func main() {
 
 	s := grpc.NewServer()
 	pb.RegisterMonorepoServiceServer(s, &server{
-		repoRoot:   repoRoot,
-		workspaces: make(map[string]*Workspace),
-		repository: repository,
+		repoRoot:      repoRoot,
+		workspaceRoot: workspaceRoot,
+		workspaces:    make(map[string]*Workspace),
+		repository:    repository,
 	})
 
 	log.Printf("gRPC server listening on port %s", port)
 	log.Printf("Repository root: %s", repoRoot)
+	log.Printf("Workspace root: %s", workspaceRoot)
 	log.Printf("Using in-memory content-addressable storage")
 
 	if err := s.Serve(lis); err != nil {

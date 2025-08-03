@@ -20,11 +20,11 @@ func TestFullWorkflowIntegration(t *testing.T) {
 	cli := testutil.NewCLIRunner(t, workDir)
 
 	t.Run("End-to-End Workflow", func(t *testing.T) {
-		// Step 1: Initialize workspace
-		result := cli.RunCommandWithServer(t, server, "start", "integration-test")
+		// Step 1: Initialize workspace with valid path
+		result := cli.RunCommandWithServer(t, server, "start", "src")
 		result.AssertSuccess(t).
-			AssertContains(t, "Initialized poon workspace").
-			AssertContains(t, "integration-test")
+			AssertContains(t, "Server created workspace").
+			AssertContains(t, "Tracking: src")
 
 		// Verify workspace structure
 		assert.True(t, workspace.HasPoonDirectory(t))
@@ -33,8 +33,8 @@ func TestFullWorkflowIntegration(t *testing.T) {
 		// Step 2: Check status
 		result = cli.RunCommand(t, "status")
 		result.AssertSuccess(t).
-			AssertContains(t, "integration-test").
-			AssertContains(t, "Tracked Paths (0)")
+			AssertContains(t, "Workspace").
+			AssertContains(t, "Tracked Paths (1)")
 
 		// Step 3: Attempt to track directories (may fail due to protobuf issues)
 		result = cli.RunCommandWithServer(t, server, "track", "src/frontend")
@@ -89,20 +89,23 @@ func TestMultiWorkspaceIntegration(t *testing.T) {
 	workspace2 := testutil.NewWorkspaceHelper(workspace2Dir)
 
 	t.Run("Independent Workspaces", func(t *testing.T) {
-		// Initialize first workspace
-		result := cli1.RunCommandWithServer(t, server, "start", "workspace-1")
+		// Initialize first workspace with docs path
+		result := cli1.RunCommandWithServer(t, server, "start", "docs")
 		result.AssertSuccess(t)
 		
-		// Initialize second workspace
-		result = cli2.RunCommandWithServer(t, server, "start", "workspace-2")
+		// Initialize second workspace with src path
+		result = cli2.RunCommandWithServer(t, server, "start", "src")
 		result.AssertSuccess(t)
 
 		// Verify each workspace has its own configuration
 		config1 := workspace1.GetConfig(t)
 		config2 := workspace2.GetConfig(t)
 		
-		assert.Equal(t, "workspace-1", config1["workspaceName"])
-		assert.Equal(t, "workspace-2", config2["workspaceName"])
+		// Workspace names should be UUIDs now, so just verify they're different
+		workspaceName1, ok1 := config1["workspaceName"].(string)
+		workspaceName2, ok2 := config2["workspaceName"].(string)
+		assert.True(t, ok1 && ok2, "Workspace names should be strings")
+		assert.NotEqual(t, workspaceName1, workspaceName2, "Workspace names should be different UUIDs")
 		
 		// Created timestamps might be identical due to fast execution, so don't strictly enforce inequality
 		if config1["createdAt"] == config2["createdAt"] {
@@ -111,10 +114,10 @@ func TestMultiWorkspaceIntegration(t *testing.T) {
 
 		// Both should be able to query status independently
 		result = cli1.RunCommand(t, "status")
-		result.AssertSuccess(t).AssertContains(t, "workspace-1")
+		result.AssertSuccess(t).AssertContains(t, "Workspace")
 		
 		result = cli2.RunCommand(t, "status")
-		result.AssertSuccess(t).AssertContains(t, "workspace-2")
+		result.AssertSuccess(t).AssertContains(t, "Workspace")
 	})
 
 	t.Run("Server Handles Multiple Clients", func(t *testing.T) {
@@ -146,23 +149,23 @@ func TestWorkflowErrorRecovery(t *testing.T) {
 		workDir := t.TempDir()
 		cli := testutil.NewCLIRunner(t, workDir)
 		
-		// Initialize workspace (should work without servers)
-		result := cli.RunCommand(t, "start", "offline-test")
-		result.AssertSuccess(t)
-		
-		// Status should work
-		result = cli.RunCommand(t, "status")
-		result.AssertSuccess(t)
-		
-		// Commands requiring server should fail gracefully
-		result = cli.RunCommand(t, "track", "src/frontend")
+		// Initialize workspace without server (should fail since we need server for path validation)
+		result := cli.RunCommand(t, "start", "src")
 		result.AssertError(t).AssertContains(t, "connection refused")
 		
+		// Status should fail since no workspace was created
+		result = cli.RunCommand(t, "status")
+		result.AssertError(t).AssertContains(t, "no poon workspace found")
+		
+		// Commands requiring workspace should fail gracefully
+		result = cli.RunCommand(t, "track", "src/frontend")
+		result.AssertError(t).AssertContains(t, "no poon workspace found")
+		
 		result = cli.RunCommand(t, "push")
-		result.AssertError(t)
+		result.AssertError(t).AssertContains(t, "no poon workspace found")
 		
 		result = cli.RunCommand(t, "sync")
-		result.AssertError(t)
+		result.AssertError(t).AssertContains(t, "no poon workspace found")
 	})
 
 	t.Run("Server Restart During Workflow", func(t *testing.T) {
@@ -173,7 +176,7 @@ func TestWorkflowErrorRecovery(t *testing.T) {
 		cli := testutil.NewCLIRunner(t, workDir)
 		
 		// Initialize workspace with server running
-		result := cli.RunCommandWithServer(t, server, "start", "restart-test")
+		result := cli.RunCommandWithServer(t, server, "start", "src")
 		result.AssertSuccess(t)
 		
 		// Stop server
@@ -192,7 +195,7 @@ func TestWorkflowErrorRecovery(t *testing.T) {
 		
 		// Status should still work (doesn't need server)
 		result = cli.RunCommand(t, "status")
-		result.AssertSuccess(t).AssertContains(t, "restart-test")
+		result.AssertSuccess(t).AssertContains(t, "Workspace")
 		
 		// Server-dependent commands should work again
 		result = cli.RunCommandWithServer(t, server, "track", "docs")

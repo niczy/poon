@@ -19,13 +19,12 @@ import (
 func TestGitServerImplementation(t *testing.T) {
 	// Test the GitServer struct and basic functionality
 	repoRoot := createTestRepo(t)
+	workspaceRoot := t.TempDir()
 
-	gitServer := &GitServer{
-		repoName: "test-repo",
-	}
+	gitServer := NewGitServer(workspaceRoot)
 
 	t.Run("Server Initialization", func(t *testing.T) {
-		assert.Equal(t, "test-repo", gitServer.repoName)
+		assert.Equal(t, workspaceRoot, gitServer.workspaceRoot)
 	})
 
 	t.Run("Repository Structure", func(t *testing.T) {
@@ -45,7 +44,7 @@ func TestGitServerImplementation(t *testing.T) {
 
 	t.Run("Git Server Routes", func(t *testing.T) {
 		// Test that GitServer can set up routes
-		gitServer := NewGitServer()
+		gitServer := NewGitServer(workspaceRoot)
 		mux := gitServer.setupRoutes()
 		assert.NotNil(t, mux)
 	})
