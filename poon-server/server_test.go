@@ -150,6 +150,10 @@ func TestReadFileEndpoint(t *testing.T) {
 		repository: repository,
 	}
 
+	// Create initial repository version from filesystem
+	_, err := repository.CreateCommitFromFileSystem(context.Background(), repoRoot, "test@example.com", "Initial commit")
+	require.NoError(t, err)
+
 	t.Run("Read Existing File", func(t *testing.T) {
 		req := &pb.ReadFileRequest{
 			Path: "docs/README.md",
@@ -251,6 +255,10 @@ func TestReadDirectoryEndpoint(t *testing.T) {
 		repoRoot:   repoRoot,
 		repository: repository,
 	}
+
+	// Create initial repository version from filesystem
+	_, err := repository.CreateCommitFromFileSystem(context.Background(), repoRoot, "test@example.com", "Initial commit")
+	require.NoError(t, err)
 
 	t.Run("Read Root Directory", func(t *testing.T) {
 		req := &pb.ReadDirectoryRequest{
@@ -458,6 +466,10 @@ func TestPathValidation(t *testing.T) {
 		repository: repository,
 	}
 
+	// Create initial repository version from filesystem for valid path tests
+	_, err := repository.CreateCommitFromFileSystem(context.Background(), repoRoot, "test@example.com", "Initial commit")
+	require.NoError(t, err)
+
 	t.Run("Path with Double Dots - ReadFile", func(t *testing.T) {
 		testCases := []string{
 			"../etc/passwd",
@@ -609,6 +621,10 @@ func TestMergePatchEndpoint(t *testing.T) {
 		repository: repository,
 	}
 
+	// Create initial repository version from filesystem for patch tests
+	_, err := repository.CreateCommitFromFileSystem(context.Background(), repoRoot, "test@example.com", "Initial commit")
+	require.NoError(t, err)
+
 	t.Run("Empty Patch Data", func(t *testing.T) {
 		req := &pb.MergePatchRequest{
 			Path:    "docs/README.md",
@@ -648,7 +664,7 @@ func TestMergePatchEndpoint(t *testing.T) {
 		resp, err := srv.MergePatch(context.Background(), req)
 		require.NoError(t, err)
 		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "Failed to parse patch")
+		assert.Contains(t, resp.Message, "Failed to apply patch")
 	})
 
 	t.Run("Apply Simple Patch to Existing File", func(t *testing.T) {
@@ -675,9 +691,10 @@ func TestMergePatchEndpoint(t *testing.T) {
 		assert.Contains(t, resp.Message, "successfully")
 		assert.NotEmpty(t, resp.CommitHash)
 
-		content, err := os.ReadFile(filepath.Join(repoRoot, "docs/README.md"))
+		// Read the patched content from the repository (not filesystem)
+		fileResp, err := srv.ReadFile(context.Background(), &pb.ReadFileRequest{Path: "docs/README.md"})
 		require.NoError(t, err)
-		assert.Contains(t, string(content), "This line was added by patch.")
+		assert.Contains(t, string(fileResp.Content), "This line was added by patch.")
 	})
 
 	t.Run("Apply Patch to Create New File", func(t *testing.T) {
@@ -701,9 +718,10 @@ func TestMergePatchEndpoint(t *testing.T) {
 		assert.True(t, resp.Success)
 		assert.Contains(t, resp.Message, "successfully")
 
-		content, err := os.ReadFile(filepath.Join(repoRoot, "docs/NEW_FILE.md"))
+		// Read the new file from the repository (not filesystem)
+		fileResp, err := srv.ReadFile(context.Background(), &pb.ReadFileRequest{Path: "docs/NEW_FILE.md"})
 		require.NoError(t, err)
-		assert.Contains(t, string(content), "This file was created by a patch.")
+		assert.Contains(t, string(fileResp.Content), "This file was created by a patch.")
 	})
 
 	t.Run("Invalid Target File in Patch", func(t *testing.T) {
@@ -724,7 +742,7 @@ func TestMergePatchEndpoint(t *testing.T) {
 		resp, err := srv.MergePatch(context.Background(), req)
 		require.NoError(t, err)
 		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "Invalid target file in patch")
+		assert.Contains(t, resp.Message, "path traversal not allowed")
 	})
 }
 

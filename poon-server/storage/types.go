@@ -31,11 +31,12 @@ type BlobObject struct {
 
 // TreeEntry represents an entry in a tree (file or directory)
 type TreeEntry struct {
-	Name string     `json:"name"`
-	Hash Hash       `json:"hash"`
-	Type ObjectType `json:"type"`
-	Mode int32      `json:"mode"` // File permissions
-	Size int64      `json:"size,omitempty"`
+	Name    string     `json:"name"`
+	Hash    Hash       `json:"hash"`
+	Type    ObjectType `json:"type"`
+	Mode    int32      `json:"mode"` // File permissions
+	Size    int64      `json:"size,omitempty"`
+	ModTime int64      `json:"modtime,omitempty"` // Modification time (Unix timestamp)
 }
 
 // TreeObject represents directory structure

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	pb "github.com/nic/poon/poon-proto/gen/go"
-	"github.com/nic/poon/poon-server/merge"
 	"github.com/nic/poon/poon-server/storage"
 	"google.golang.org/grpc"
 )
@@ -65,61 +64,12 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 		}, nil
 	}
 
-	// Parse and validate patch
-	parsed, err := merge.ParsePatch(req.Patch)
+	// Apply patch using content-addressable storage directly
+	versionInfo, err := s.repository.ApplyPatch(ctx, req.Patch, req.Author, req.Message)
 	if err != nil {
-		return &pb.MergePatchResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to parse patch: %v", err),
-		}, nil
-	}
-
-	if err := validatePath(parsed.Header.NewFile); err != nil {
-		return &pb.MergePatchResponse{
-			Success: false,
-			Message: fmt.Sprintf("Invalid target file in patch: %v", err),
-		}, nil
-	}
-
-	// Apply patch to file system first
-	targetFile := filepath.Join(s.repoRoot, parsed.Header.NewFile)
-	backupPath, err := merge.BackupFile(targetFile)
-	if err != nil {
-		return &pb.MergePatchResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to backup file: %v", err),
-		}, nil
-	}
-
-	if err := merge.ApplyPatch(targetFile, parsed); err != nil {
-		if backupPath != "" {
-			if restoreErr := os.Rename(backupPath, targetFile); restoreErr != nil {
-				log.Printf("Failed to restore backup: %v", restoreErr)
-			}
-		}
 		return &pb.MergePatchResponse{
 			Success: false,
 			Message: fmt.Sprintf("Failed to apply patch: %v", err),
-		}, nil
-	}
-
-	// Clean up backup
-	if backupPath != "" {
-		if err := os.Remove(backupPath); err != nil {
-			log.Printf("Warning: Failed to remove backup file %s: %v", backupPath, err)
-		}
-	}
-
-	// Create new version from updated file system
-	versionInfo, err := s.repository.CreateCommitFromFileSystem(ctx, s.repoRoot, req.Author, req.Message)
-	if err != nil {
-		log.Printf("Warning: Failed to create version in content-addressable storage: %v", err)
-		// Continue with success response since file system was updated successfully
-		commitHash := fmt.Sprintf("commit_%d", time.Now().Unix())
-		return &pb.MergePatchResponse{
-			Success:    true,
-			Message:    fmt.Sprintf("Patch applied successfully to %s", req.Path),
-			CommitHash: commitHash,
 		}, nil
 	}
 
@@ -146,8 +96,7 @@ func (s *server) ReadDirectory(ctx context.Context, req *pb.ReadDirectoryRequest
 	}
 
 	if currentVersion == 0 {
-		// No versions exist, fall back to file system
-		return s.readDirectoryFromFileSystem(req.Path)
+		return nil, fmt.Errorf("no repository versions exist - create an initial commit first")
 	}
 
 	// Read from content-addressable storage
@@ -162,7 +111,7 @@ func (s *server) ReadDirectory(ctx context.Context, req *pb.ReadDirectoryRequest
 			Name:    entry.Name,
 			IsDir:   entry.Type == storage.ObjectTypeTree,
 			Size:    entry.Size,
-			ModTime: 0, // TODO: Add timestamp to TreeEntry
+			ModTime: entry.ModTime,
 		}
 		items = append(items, item)
 	}
@@ -186,8 +135,7 @@ func (s *server) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.Rea
 	}
 
 	if currentVersion == 0 {
-		// No versions exist, fall back to file system
-		return s.readFileFromFileSystem(req.Path)
+		return nil, fmt.Errorf("no repository versions exist - create an initial commit first")
 	}
 
 	// Read from content-addressable storage
@@ -393,50 +341,6 @@ func (s *server) DownloadPath(ctx context.Context, req *pb.DownloadPathRequest) 
 		Message:  fmt.Sprintf("Download prepared for path: %s", req.Path),
 		Content:  []byte("mock archive content"),
 		Filename: fmt.Sprintf("%s.tar.gz", filepath.Base(req.Path)),
-	}, nil
-}
-
-// Fallback methods for file system access when no versions exist
-
-func (s *server) readFileFromFileSystem(path string) (*pb.ReadFileResponse, error) {
-	fullPath := filepath.Join(s.repoRoot, path)
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %v", err)
-	}
-
-	return &pb.ReadFileResponse{
-		Content: content,
-	}, nil
-}
-
-func (s *server) readDirectoryFromFileSystem(path string) (*pb.ReadDirectoryResponse, error) {
-	fullPath := filepath.Join(s.repoRoot, path)
-	entries, err := os.ReadDir(fullPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read directory: %v", err)
-	}
-
-	var items []*pb.DirectoryItem
-	for _, entry := range entries {
-		item := &pb.DirectoryItem{
-			Name:  entry.Name(),
-			IsDir: entry.IsDir(),
-		}
-
-		if !entry.IsDir() {
-			info, err := entry.Info()
-			if err == nil {
-				item.Size = info.Size()
-				item.ModTime = info.ModTime().Unix()
-			}
-		}
-
-		items = append(items, item)
-	}
-
-	return &pb.ReadDirectoryResponse{
-		Items: items,
 	}, nil
 }
 
