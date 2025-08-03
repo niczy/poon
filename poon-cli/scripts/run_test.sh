@@ -48,7 +48,7 @@ fi
 
 # Test that the CLI builds successfully
 echo "🔨 Testing CLI build..."
-go build -o poon-cli-test ./...
+go build -o poon-cli-test ./cmd/poon
 rm -f poon-cli-test
 
 echo ""
