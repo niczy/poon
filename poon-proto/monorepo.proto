@@ -35,6 +35,9 @@ service MonorepoService {
   
   // Download operations
   rpc DownloadPath(DownloadPathRequest) returns (DownloadPathResponse);
+  
+  // Track additional paths in workspace
+  rpc AddTrackedPath(AddTrackedPathRequest) returns (AddTrackedPathResponse);
 }
 
 // Request to merge a patch
@@ -224,4 +227,19 @@ message DownloadPathResponse {
   string message = 2;
   bytes content = 3;
   string filename = 4;
+}
+
+// Request to add a tracked path to workspace
+message AddTrackedPathRequest {
+  string workspace_id = 1;
+  string path = 2;
+  string branch = 3;  // Branch to track from (default: main)
+}
+
+// Response from adding a tracked path
+message AddTrackedPathResponse {
+  bool success = 1;
+  string message = 2;
+  string commit_hash = 3;
+  int64 new_version = 4;
 }

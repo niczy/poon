@@ -51,11 +51,14 @@ git checkout feature/my-change
 # Edit files...
 git add .
 git commit -m "My changes"
+# Push changes to remote git repo
+git push origin feature/my-change
 ```
 
 ### Sync with Monorepo
 ```bash
-# Push local changes back to monorepo as patches
+# Push diff between current branch and main branch to poon-server
+# Poon checks there's no uncommited changes in the local repo
 poon push
 
 # Sync with latest monorepo state
@@ -65,23 +68,16 @@ poon sync [--rebase]
 ### Testing and Linting
 ```bash
 # Run all tests (npm + Go integration tests)
-npm run test
+make test
 
 # Run workflow integration tests  
-cd poon-tests && go test -v ./...
+make test-integration
 
 # Run component-specific tests
-cd poon-server && go test -v  # gRPC server tests
-cd poon-git && go test -v     # HTTP server tests
+make test-server
+make test-git
+make test-cli
 
-# Run specific test suite
-cd poon-tests && go test -v -run TestFullWorkflowIntegration
-
-# Lint code
-npm run lint
-
-# Clean build artifacts
-npm run clean
 ```
 
 ### Component-Specific Commands

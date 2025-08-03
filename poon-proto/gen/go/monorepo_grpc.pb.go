@@ -31,6 +31,7 @@ const (
 	MonorepoService_DeleteWorkspace_FullMethodName         = "/monorepo.MonorepoService/DeleteWorkspace"
 	MonorepoService_ConfigureSparseCheckout_FullMethodName = "/monorepo.MonorepoService/ConfigureSparseCheckout"
 	MonorepoService_DownloadPath_FullMethodName            = "/monorepo.MonorepoService/DownloadPath"
+	MonorepoService_AddTrackedPath_FullMethodName          = "/monorepo.MonorepoService/AddTrackedPath"
 )
 
 // MonorepoServiceClient is the client API for MonorepoService service.
@@ -60,6 +61,8 @@ type MonorepoServiceClient interface {
 	ConfigureSparseCheckout(ctx context.Context, in *SparseCheckoutRequest, opts ...grpc.CallOption) (*SparseCheckoutResponse, error)
 	// Download operations
 	DownloadPath(ctx context.Context, in *DownloadPathRequest, opts ...grpc.CallOption) (*DownloadPathResponse, error)
+	// Track additional paths in workspace
+	AddTrackedPath(ctx context.Context, in *AddTrackedPathRequest, opts ...grpc.CallOption) (*AddTrackedPathResponse, error)
 }
 
 type monorepoServiceClient struct {
@@ -190,6 +193,16 @@ func (c *monorepoServiceClient) DownloadPath(ctx context.Context, in *DownloadPa
 	return out, nil
 }
 
+func (c *monorepoServiceClient) AddTrackedPath(ctx context.Context, in *AddTrackedPathRequest, opts ...grpc.CallOption) (*AddTrackedPathResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddTrackedPathResponse)
+	err := c.cc.Invoke(ctx, MonorepoService_AddTrackedPath_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MonorepoServiceServer is the server API for MonorepoService service.
 // All implementations must embed UnimplementedMonorepoServiceServer
 // for forward compatibility.
@@ -217,6 +230,8 @@ type MonorepoServiceServer interface {
 	ConfigureSparseCheckout(context.Context, *SparseCheckoutRequest) (*SparseCheckoutResponse, error)
 	// Download operations
 	DownloadPath(context.Context, *DownloadPathRequest) (*DownloadPathResponse, error)
+	// Track additional paths in workspace
+	AddTrackedPath(context.Context, *AddTrackedPathRequest) (*AddTrackedPathResponse, error)
 	mustEmbedUnimplementedMonorepoServiceServer()
 }
 
@@ -262,6 +277,9 @@ func (UnimplementedMonorepoServiceServer) ConfigureSparseCheckout(context.Contex
 }
 func (UnimplementedMonorepoServiceServer) DownloadPath(context.Context, *DownloadPathRequest) (*DownloadPathResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DownloadPath not implemented")
+}
+func (UnimplementedMonorepoServiceServer) AddTrackedPath(context.Context, *AddTrackedPathRequest) (*AddTrackedPathResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddTrackedPath not implemented")
 }
 func (UnimplementedMonorepoServiceServer) mustEmbedUnimplementedMonorepoServiceServer() {}
 func (UnimplementedMonorepoServiceServer) testEmbeddedByValue()                         {}
@@ -500,6 +518,24 @@ func _MonorepoService_DownloadPath_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MonorepoService_AddTrackedPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddTrackedPathRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MonorepoServiceServer).AddTrackedPath(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MonorepoService_AddTrackedPath_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MonorepoServiceServer).AddTrackedPath(ctx, req.(*AddTrackedPathRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MonorepoService_ServiceDesc is the grpc.ServiceDesc for MonorepoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -554,6 +590,10 @@ var MonorepoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DownloadPath",
 			Handler:    _MonorepoService_DownloadPath_Handler,
+		},
+		{
+			MethodName: "AddTrackedPath",
+			Handler:    _MonorepoService_AddTrackedPath_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
