@@ -13,6 +13,7 @@ import (
 
 	pb "github.com/nic/poon/poon-proto/gen/go"
 	"github.com/nic/poon/poon-server/merge"
+	"github.com/nic/poon/poon-server/storage"
 	"google.golang.org/grpc"
 )
 
@@ -21,6 +22,7 @@ type server struct {
 	repoRoot   string
 	workspaces map[string]*Workspace
 	mu         sync.RWMutex
+	repository storage.Repository
 }
 
 type Workspace struct {
@@ -63,6 +65,7 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 		}, nil
 	}
 
+	// Parse and validate patch
 	parsed, err := merge.ParsePatch(req.Patch)
 	if err != nil {
 		return &pb.MergePatchResponse{
@@ -78,8 +81,8 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 		}, nil
 	}
 
+	// Apply patch to file system first
 	targetFile := filepath.Join(s.repoRoot, parsed.Header.NewFile)
-
 	backupPath, err := merge.BackupFile(targetFile)
 	if err != nil {
 		return &pb.MergePatchResponse{
@@ -100,20 +103,32 @@ func (s *server) MergePatch(ctx context.Context, req *pb.MergePatchRequest) (*pb
 		}, nil
 	}
 
+	// Clean up backup
 	if backupPath != "" {
 		if err := os.Remove(backupPath); err != nil {
 			log.Printf("Warning: Failed to remove backup file %s: %v", backupPath, err)
 		}
 	}
 
-	commitHash := fmt.Sprintf("commit_%d", time.Now().Unix())
+	// Create new version from updated file system
+	versionInfo, err := s.repository.CreateCommitFromFileSystem(ctx, s.repoRoot, req.Author, req.Message)
+	if err != nil {
+		log.Printf("Warning: Failed to create version in content-addressable storage: %v", err)
+		// Continue with success response since file system was updated successfully
+		commitHash := fmt.Sprintf("commit_%d", time.Now().Unix())
+		return &pb.MergePatchResponse{
+			Success:    true,
+			Message:    fmt.Sprintf("Patch applied successfully to %s", req.Path),
+			CommitHash: commitHash,
+		}, nil
+	}
 
-	log.Printf("Successfully applied patch to %s", targetFile)
+	log.Printf("Successfully applied patch, created version %d with commit %s", versionInfo.Version, versionInfo.CommitHash)
 
 	return &pb.MergePatchResponse{
 		Success:    true,
-		Message:    fmt.Sprintf("Patch applied successfully to %s", req.Path),
-		CommitHash: commitHash,
+		Message:    fmt.Sprintf("Patch applied successfully, created version %d", versionInfo.Version),
+		CommitHash: string(versionInfo.CommitHash),
 	}, nil
 }
 
@@ -124,8 +139,19 @@ func (s *server) ReadDirectory(ctx context.Context, req *pb.ReadDirectoryRequest
 		return nil, fmt.Errorf("invalid path: %v", err)
 	}
 
-	fullPath := filepath.Join(s.repoRoot, req.Path)
-	entries, err := os.ReadDir(fullPath)
+	// Get current version
+	currentVersion, err := s.repository.GetCurrentVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current version: %v", err)
+	}
+
+	if currentVersion == 0 {
+		// No versions exist, fall back to file system
+		return s.readDirectoryFromFileSystem(req.Path)
+	}
+
+	// Read from content-addressable storage
+	entries, err := s.repository.ReadDirectory(ctx, currentVersion, req.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory: %v", err)
 	}
@@ -133,18 +159,11 @@ func (s *server) ReadDirectory(ctx context.Context, req *pb.ReadDirectoryRequest
 	var items []*pb.DirectoryItem
 	for _, entry := range entries {
 		item := &pb.DirectoryItem{
-			Name:  entry.Name(),
-			IsDir: entry.IsDir(),
+			Name:    entry.Name,
+			IsDir:   entry.Type == storage.ObjectTypeTree,
+			Size:    entry.Size,
+			ModTime: 0, // TODO: Add timestamp to TreeEntry
 		}
-
-		if !entry.IsDir() {
-			info, err := entry.Info()
-			if err == nil {
-				item.Size = info.Size()
-				item.ModTime = info.ModTime().Unix()
-			}
-		}
-
 		items = append(items, item)
 	}
 
@@ -160,8 +179,19 @@ func (s *server) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.Rea
 		return nil, fmt.Errorf("invalid path: %v", err)
 	}
 
-	fullPath := filepath.Join(s.repoRoot, req.Path)
-	content, err := os.ReadFile(fullPath)
+	// Get current version
+	currentVersion, err := s.repository.GetCurrentVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current version: %v", err)
+	}
+
+	if currentVersion == 0 {
+		// No versions exist, fall back to file system
+		return s.readFileFromFileSystem(req.Path)
+	}
+
+	// Read from content-addressable storage
+	content, err := s.repository.ReadFile(ctx, currentVersion, req.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %v", err)
 	}
@@ -366,6 +396,50 @@ func (s *server) DownloadPath(ctx context.Context, req *pb.DownloadPathRequest) 
 	}, nil
 }
 
+// Fallback methods for file system access when no versions exist
+
+func (s *server) readFileFromFileSystem(path string) (*pb.ReadFileResponse, error) {
+	fullPath := filepath.Join(s.repoRoot, path)
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %v", err)
+	}
+
+	return &pb.ReadFileResponse{
+		Content: content,
+	}, nil
+}
+
+func (s *server) readDirectoryFromFileSystem(path string) (*pb.ReadDirectoryResponse, error) {
+	fullPath := filepath.Join(s.repoRoot, path)
+	entries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory: %v", err)
+	}
+
+	var items []*pb.DirectoryItem
+	for _, entry := range entries {
+		item := &pb.DirectoryItem{
+			Name:  entry.Name(),
+			IsDir: entry.IsDir(),
+		}
+
+		if !entry.IsDir() {
+			info, err := entry.Info()
+			if err == nil {
+				item.Size = info.Size()
+				item.ModTime = info.ModTime().Unix()
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	return &pb.ReadDirectoryResponse{
+		Items: items,
+	}, nil
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -377,6 +451,10 @@ func main() {
 		repoRoot = "."
 	}
 
+	// Initialize storage backend (in-memory for now)
+	backend := storage.NewMemoryBackend()
+	repository := storage.NewRepository(backend)
+
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -386,10 +464,12 @@ func main() {
 	pb.RegisterMonorepoServiceServer(s, &server{
 		repoRoot:   repoRoot,
 		workspaces: make(map[string]*Workspace),
+		repository: repository,
 	})
 
 	log.Printf("gRPC server listening on port %s", port)
 	log.Printf("Repository root: %s", repoRoot)
+	log.Printf("Using in-memory content-addressable storage")
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

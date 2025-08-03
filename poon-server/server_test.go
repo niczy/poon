@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "github.com/nic/poon/poon-proto/gen/go"
+	"github.com/nic/poon/poon-server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,8 +17,11 @@ import (
 func TestServerImplementation(t *testing.T) {
 	// Test the server implementation directly without gRPC serialization
 	repoRoot := createTestRepo(t)
+	backend := storage.NewMemoryBackend()
+	repository := storage.NewRepository(backend)
 	srv := &server{
-		repoRoot: repoRoot,
+		repoRoot:   repoRoot,
+		repository: repository,
 	}
 
 	t.Run("Server Initialization", func(t *testing.T) {
@@ -82,8 +86,11 @@ func TestServerResilience(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			t.Logf("Creating server instance %d", i+1)
 
+			backend := storage.NewMemoryBackend()
+			repository := storage.NewRepository(backend)
 			srv := &server{
-				repoRoot: repoRoot,
+				repoRoot:   repoRoot,
+				repository: repository,
 			}
 
 			// Verify server can access repository
@@ -94,8 +101,11 @@ func TestServerResilience(t *testing.T) {
 	})
 
 	t.Run("Concurrent File System Access", func(t *testing.T) {
+		backend := storage.NewMemoryBackend()
+		repository := storage.NewRepository(backend)
 		srv := &server{
-			repoRoot: repoRoot,
+			repoRoot:   repoRoot,
+			repository: repository,
 		}
 
 		// Launch multiple concurrent file system operations
@@ -133,8 +143,11 @@ func TestServerResilience(t *testing.T) {
 
 func TestReadFileEndpoint(t *testing.T) {
 	repoRoot := createTestRepo(t)
+	backend := storage.NewMemoryBackend()
+	repository := storage.NewRepository(backend)
 	srv := &server{
-		repoRoot: repoRoot,
+		repoRoot:   repoRoot,
+		repository: repository,
 	}
 
 	t.Run("Read Existing File", func(t *testing.T) {
@@ -232,8 +245,11 @@ func TestReadFileEndpoint(t *testing.T) {
 
 func TestReadDirectoryEndpoint(t *testing.T) {
 	repoRoot := createTestRepo(t)
+	backend := storage.NewMemoryBackend()
+	repository := storage.NewRepository(backend)
 	srv := &server{
-		repoRoot: repoRoot,
+		repoRoot:   repoRoot,
+		repository: repository,
 	}
 
 	t.Run("Read Root Directory", func(t *testing.T) {
@@ -435,8 +451,11 @@ func TestReadDirectoryEndpoint(t *testing.T) {
 
 func TestPathValidation(t *testing.T) {
 	repoRoot := createTestRepo(t)
+	backend := storage.NewMemoryBackend()
+	repository := storage.NewRepository(backend)
 	srv := &server{
-		repoRoot: repoRoot,
+		repoRoot:   repoRoot,
+		repository: repository,
 	}
 
 	t.Run("Path with Double Dots - ReadFile", func(t *testing.T) {
@@ -583,8 +602,11 @@ func TestPathValidation(t *testing.T) {
 
 func TestMergePatchEndpoint(t *testing.T) {
 	repoRoot := createTestRepo(t)
+	backend := storage.NewMemoryBackend()
+	repository := storage.NewRepository(backend)
 	srv := &server{
-		repoRoot: repoRoot,
+		repoRoot:   repoRoot,
+		repository: repository,
 	}
 
 	t.Run("Empty Patch Data", func(t *testing.T) {
