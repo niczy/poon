@@ -36,15 +36,20 @@ func TestFullWorkflowIntegration(t *testing.T) {
 			AssertContains(t, "Workspace").
 			AssertContains(t, "Tracked Paths (1)")
 
-		// Step 3: Attempt to track directories (may fail due to protobuf issues)
+		// Step 3: Track additional directories using new gRPC workflow
 		result = cli.RunCommandWithServer(t, server, "track", "src/frontend")
-		if result.Error == nil {
-			result.AssertContains(t, "Tracked")
-		} else {
-			t.Logf("Track command failed (expected due to protobuf issues): %v", result.Error)
-		}
+		result.AssertSuccess(t).
+			AssertContains(t, "Adding src/frontend to workspace via gRPC").
+			AssertContains(t, "Successfully added src/frontend to workspace").
+			AssertContains(t, "Pulling latest changes from remote")
 
-		// Step 4: Test git integration
+		// Step 4: Verify tracked path was added to configuration
+		result = cli.RunCommand(t, "status")
+		result.AssertSuccess(t).
+		AssertContains(t, "Tracked Paths (2)").
+		AssertContains(t, "src/frontend")
+
+		// Step 5: Test git integration
 		workspace.CreateTestFile(t, "workflow-test.md", "# End-to-End Test\nThis file was created during integration testing.")
 		
 		result = workspace.RunGitCommand(t, "add", "workflow-test.md")
@@ -53,7 +58,7 @@ func TestFullWorkflowIntegration(t *testing.T) {
 		result = workspace.RunGitCommand(t, "commit", "-m", "Add integration test file")
 		result.AssertSuccess(t)
 
-		// Step 5: Test push workflow (may fail but should not crash)
+		// Step 6: Test push workflow (may fail but should not crash)
 		result = cli.RunCommandWithServer(t, server, "push")
 		if result.Error == nil {
 			result.AssertContains(t, "Changes pushed")
@@ -61,7 +66,7 @@ func TestFullWorkflowIntegration(t *testing.T) {
 			t.Logf("Push command failed (expected): %v", result.Error)
 		}
 
-		// Step 6: Test sync workflow
+		// Step 7: Test sync workflow
 		result = cli.RunCommandWithServer(t, server, "sync")
 		if result.Error == nil {
 			result.AssertContains(t, "Synced with monorepo")
@@ -125,12 +130,17 @@ func TestMultiWorkspaceIntegration(t *testing.T) {
 		result1 := cli1.RunCommandWithServer(t, server, "track", "src/backend")
 		result2 := cli2.RunCommandWithServer(t, server, "track", "src/backend")
 		
-		// Both should either succeed or fail gracefully (no server crash)
-		if result1.Error != nil {
-			t.Logf("Workspace 1 track failed (expected): %v", result1.Error)
+		// Both should succeed with new gRPC workflow
+		if result1.Error == nil {
+			result1.AssertSuccess(t).AssertContains(t, "Successfully added src/backend to workspace")
+		} else {
+			t.Logf("Workspace 1 track failed: %v", result1.Error)
 		}
-		if result2.Error != nil {
-			t.Logf("Workspace 2 track failed (expected): %v", result2.Error)
+		
+		if result2.Error == nil {
+			result2.AssertSuccess(t).AssertContains(t, "Successfully added src/backend to workspace")
+		} else {
+			t.Logf("Workspace 2 track failed: %v", result2.Error)
 		}
 
 		// Server should still be responsive
@@ -199,9 +209,11 @@ func TestWorkflowErrorRecovery(t *testing.T) {
 		
 		// Server-dependent commands should work again
 		result = cli.RunCommandWithServer(t, server, "track", "docs")
-		// May fail due to protobuf issues, but should not crash
-		if result.Error != nil {
-			t.Logf("Track after restart failed (expected): %v", result.Error)
+		// Should succeed with new gRPC workflow
+		if result.Error == nil {
+			result.AssertSuccess(t).AssertContains(t, "Successfully added docs to workspace")
+		} else {
+			t.Logf("Track after restart failed: %v", result.Error)
 		}
 		
 		server.Stop()

@@ -266,6 +266,12 @@ var trackCmd = &cobra.Command{
 			return err
 		}
 
+		// Sync with remote before adding new paths
+		if err := syncFromRemote(); err != nil {
+			fmt.Printf("Warning: failed to sync with remote: %v\n", err)
+			fmt.Printf("Continuing with local state...\n")
+		}
+
 		// Test server connectivity first
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -288,26 +294,56 @@ var trackCmd = &cobra.Command{
 				return fmt.Errorf("failed to access path %s: %v", path, err)
 			}
 
-			// TODO: Download directory contents recursively
-			// TODO: Set up sparse-checkout configuration
-			// TODO: Create initial commit for tracked content
-
-			// Add to tracked paths
+			// Check if already tracked
+			alreadyTracked := false
 			for _, tracked := range config.TrackedPaths {
 				if tracked == path {
 					fmt.Printf("Path %s is already tracked\n", path)
-					continue
+					alreadyTracked = true
+					break
 				}
 			}
+			if alreadyTracked {
+				continue
+			}
 
+			// Use gRPC to add the tracked path to workspace
+			fmt.Printf("  Adding %s to workspace via gRPC...\n", path)
+			ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+			addResp, err := client.AddTrackedPath(ctx, &pb.AddTrackedPathRequest{
+				WorkspaceId: config.WorkspaceName,
+				Path:        path,
+				Branch:      "main",
+			})
+			cancel()
+
+			if err != nil {
+				return fmt.Errorf("failed to add tracked path %s: %v", path, err)
+			}
+
+			if !addResp.Success {
+				return fmt.Errorf("server failed to add path %s: %s", path, addResp.Message)
+			}
+
+			// Add to tracked paths in local config
 			config.TrackedPaths = append(config.TrackedPaths, path)
+			fmt.Printf("  ✓ Successfully added %s to workspace (commit: %s)\n", path, addResp.CommitHash)
+
+			// Pull the updated main branch from remote
+			fmt.Printf("  Pulling latest changes from remote...\n")
+			if err := runCommand("git", "pull", "origin", "main"); err != nil {
+				fmt.Printf("  Warning: failed to pull from remote: %v\n", err)
+				fmt.Printf("  You can pull later with: git pull origin main\n")
+			}
 		}
 
 		if err := savePoonConfig(config); err != nil {
 			return err
 		}
 
-		fmt.Printf("✓ Tracked %d path(s)\n", len(args))
+		fmt.Printf("✓ Successfully tracked %d path(s)\n", len(args))
+		fmt.Printf("  Tracked paths: %v\n", config.TrackedPaths)
+		fmt.Printf("  Remote is synced with main branch\n")
 		return nil
 	},
 }
@@ -765,6 +801,56 @@ func init() {
 	rootCmd.AddCommand(applyCmd)
 	rootCmd.AddCommand(sparseCheckoutCmd)
 	rootCmd.AddCommand(downloadCmd)
+}
+
+// extractTarContent extracts tar content to the specified destination
+func extractTarContent(tarContent []byte, destDir string) error {
+	// Create a temporary file for the tar content
+	tempFile, err := os.CreateTemp("", "poon-download-*.tar")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	if _, err := tempFile.Write(tarContent); err != nil {
+		return fmt.Errorf("failed to write tar content: %v", err)
+	}
+
+	// Extract the tar file
+	cmd := exec.Command("tar", "-xf", tempFile.Name(), "-C", destDir)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to extract tar: %v", err)
+	}
+
+	return nil
+}
+
+// syncFromRemote pulls the latest changes from the remote git repository
+func syncFromRemote() error {
+	fmt.Printf("Syncing with remote repository...\n")
+
+	// Fetch latest changes from remote
+	if err := runCommand("git", "fetch", "origin"); err != nil {
+		return fmt.Errorf("failed to fetch from remote: %v", err)
+	}
+
+	// Merge or rebase with origin/main
+	if err := runCommand("git", "merge", "origin/main", "--no-edit"); err != nil {
+		// If merge fails, try rebase
+		fmt.Printf("Merge failed, attempting rebase...\n")
+		if err := runCommand("git", "reset", "--hard", "HEAD"); err != nil {
+			return fmt.Errorf("failed to reset: %v", err)
+		}
+		if err := runCommand("git", "rebase", "origin/main"); err != nil {
+			return fmt.Errorf("failed to rebase: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func main() {

@@ -7,7 +7,7 @@ A modern, gRPC-powered monorepo management system designed for internet-scale de
 
 ## 🏗️ Architecture
 
-The Poon system consists of six interconnected components:
+The Poon system consists of four core interconnected components:
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -15,16 +15,17 @@ The Poon system consists of six interconnected components:
 │   (Next.js) │    │   (CLI)     │    │ (Git Server)│
 └─────┬───────┘    └─────┬───────┘    └─────┬───────┘
       │                  │                  │
-      │            gRPC  │                  │ Git HTTP
-      │                  │                  │ Protocol
+      │ gRPC-Web         │ gRPC             │ Git HTTP
+      │                  │                  │ Protocol  
       └──────────────────┼──────────────────┘
                          │                  
                 ┌────────▼────────┐          
                 │  poon-server    │          
                 │   (gRPC API)    │          
                 │ ┌─────────────┐ │          
-                │ │  Workspace  │ │          
-                │ │   Storage   │ │          
+                │ │Content-Addr │ │          
+                │ │  Storage +  │ │          
+                │ │ Workspaces  │ │          
                 │ └─────────────┘ │          
                 └─────────────────┘          
 ```

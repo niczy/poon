@@ -545,6 +545,142 @@ func (s *server) DownloadPath(ctx context.Context, req *pb.DownloadPathRequest) 
 	}, nil
 }
 
+func (s *server) AddTrackedPath(ctx context.Context, req *pb.AddTrackedPathRequest) (*pb.AddTrackedPathResponse, error) {
+	log.Printf("Adding tracked path %s to workspace %s", req.Path, req.WorkspaceId)
+
+	if err := validatePath(req.Path); err != nil {
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: fmt.Sprintf("Invalid path: %v", err),
+		}, nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	workspace, exists := s.workspaces[req.WorkspaceId]
+	if !exists {
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: "Workspace not found",
+		}, nil
+	}
+
+	// Check if path already exists in tracked paths
+	for _, trackedPath := range workspace.TrackedPaths {
+		if trackedPath == req.Path {
+			return &pb.AddTrackedPathResponse{
+				Success: false,
+				Message: fmt.Sprintf("Path %s is already tracked", req.Path),
+			}, nil
+		}
+	}
+
+	// Check if path exists in monorepo
+	currentVersion, err := s.repository.GetCurrentVersion(ctx)
+	if err != nil {
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to get current version: %v", err),
+		}, nil
+	}
+
+	_, err = s.repository.ReadDirectory(ctx, currentVersion, req.Path)
+	if err != nil {
+		// Try as file
+		_, err = s.repository.ReadFile(ctx, currentVersion, req.Path)
+		if err != nil {
+			return &pb.AddTrackedPathResponse{
+				Success: false,
+				Message: fmt.Sprintf("Path %s not found in monorepo: %v", req.Path, err),
+			}, nil
+		}
+	}
+
+	// Add the path to tracked paths
+	workspace.TrackedPaths = append(workspace.TrackedPaths, req.Path)
+	workspace.LastSync = time.Now()
+
+	// Copy the new path to the workspace git repo
+	branch := req.Branch
+	if branch == "" {
+		branch = "main"
+	}
+
+	if err := s.copyPathToGitRepo(ctx, currentVersion, req.Path, workspace.GitRepoPath); err != nil {
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to copy path to git repo: %v", err),
+		}, nil
+	}
+
+	// Update .poon-workspace metadata file
+	metadataContent := fmt.Sprintf(`# Poon Workspace Metadata
+# This file is managed by poon-server
+workspace_version: 1
+tracked_paths:
+%s
+created_at: %s
+`, formatTrackedPaths(workspace.TrackedPaths), workspace.CreatedAt.Format(time.RFC3339))
+
+	metadataPath := filepath.Join(workspace.GitRepoPath, ".poon-workspace")
+	if err := os.WriteFile(metadataPath, []byte(metadataContent), 0644); err != nil {
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to update metadata file: %v", err),
+		}, nil
+	}
+
+	// Commit the changes
+	cmd := exec.Command("git", "add", ".")
+	cmd.Dir = workspace.GitRepoPath
+	if err := cmd.Run(); err != nil {
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to add files to git: %v", err),
+		}, nil
+	}
+
+	commitMsg := fmt.Sprintf("Add %s to tracked paths", req.Path)
+	cmd = exec.Command("git", "commit", "-m", commitMsg)
+	cmd.Dir = workspace.GitRepoPath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if there are no changes to commit
+		if strings.Contains(string(output), "nothing to commit") {
+			// Still return success, path was already tracked
+			return &pb.AddTrackedPathResponse{
+				Success:    true,
+				Message:    fmt.Sprintf("Path %s was already in workspace", req.Path),
+				CommitHash: "",
+				NewVersion: currentVersion,
+			}, nil
+		}
+		return &pb.AddTrackedPathResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to commit changes: %v - %s", err, string(output)),
+		}, nil
+	}
+
+	// Get the commit hash
+	cmd = exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = workspace.GitRepoPath
+	commitHashBytes, err := cmd.Output()
+	commitHash := strings.TrimSpace(string(commitHashBytes))
+	if err != nil {
+		commitHash = "unknown"
+	}
+
+	log.Printf("Successfully added tracked path %s to workspace %s", req.Path, req.WorkspaceId)
+
+	return &pb.AddTrackedPathResponse{
+		Success:    true,
+		Message:    fmt.Sprintf("Successfully added %s to workspace", req.Path),
+		CommitHash: commitHash,
+		NewVersion: currentVersion,
+	}, nil
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
