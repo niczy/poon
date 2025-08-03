@@ -103,43 +103,64 @@ build: proto
 test: install-protoc-tools
 	@echo "Running tests for all components..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-git && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
-	cd ../poon-server && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
-	cd ../poon-cli && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
-	cd ../poon-proto && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
-	cd ../poon-web && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
-	cd ../poon-tests && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	$(MAKE) test-git && \
+	$(MAKE) test-server && \
+	$(MAKE) test-cli && \
+	$(MAKE) test-proto && \
+	$(MAKE) test-web && \
+	$(MAKE) test-integration
 
 # Individual component test targets
 test-git: install-protoc-tools
 	@echo "🧪 Running tests for poon-git only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-git && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	cd poon-git && go mod download && go mod tidy && \
+	go build -o poon-git . && rm -f poon-git && \
+	go test -v ./... && go vet ./... && \
+	if [ "$$(gofmt -l . | wc -l)" -gt 0 ]; then echo "❌ Code is not properly formatted"; gofmt -l .; exit 1; else echo "✅ Code is properly formatted"; fi
 
 test-server: install-protoc-tools
 	@echo "🧪 Running tests for poon-server only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-server && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	cd poon-server && go mod download && go mod tidy && \
+	go build -o poon-server . && rm -f poon-server && \
+	go test -v ./... && go vet ./... && \
+	if [ "$$(gofmt -l . | wc -l)" -gt 0 ]; then echo "❌ Code is not properly formatted"; gofmt -l .; exit 1; else echo "✅ Code is properly formatted"; fi
 
 test-cli: install-protoc-tools
 	@echo "🧪 Running tests for poon-cli only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-cli && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	cd poon-cli && go mod download && go mod tidy && \
+	if [ -f "cmd/poon/main.go" ]; then \
+		echo "Building from cmd/poon directory"; \
+		go build -o poon-cli ./cmd/poon; \
+	elif [ -f "main.go" ]; then \
+		echo "Building from root directory"; \
+		go build -o poon-cli .; \
+	else \
+		echo "Error: Cannot determine build path"; \
+		ls -la; \
+		exit 1; \
+	fi && \
+	rm -f poon-cli && \
+	go test -v ./... && go vet ./... && \
+	if [ "$$(gofmt -l . | wc -l)" -gt 0 ]; then echo "❌ Code is not properly formatted"; gofmt -l .; exit 1; else echo "✅ Code is properly formatted"; fi
 
 test-proto: install-protoc-tools
 	@echo "🧪 Running tests for poon-proto only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-proto && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	cd poon-proto && npm ci
 
 test-web: install-protoc-tools
 	@echo "🧪 Running tests for poon-web only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-web && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	cd poon-web && npm ci && npm test --if-present && npm run lint --if-present
 
 test-integration: install-protoc-tools
 	@echo "🧪 Running integration tests (poon-tests) only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd poon-tests && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+	cd poon-tests && go mod download && go mod tidy && \
+	go test -v ./... && go vet ./...
 
 # Sub-package test targets for poon-server
 test-storage:
@@ -234,9 +255,15 @@ ci-test-component:
 	fi
 	@echo "Testing component: $(COMPONENT)"
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
-	cd $(COMPONENT) && \
-	chmod +x scripts/run_test.sh && \
-	./scripts/run_test.sh
+	case "$(COMPONENT)" in \
+		poon-git) $(MAKE) test-git ;; \
+		poon-server) $(MAKE) test-server ;; \
+		poon-cli) $(MAKE) test-cli ;; \
+		poon-proto) $(MAKE) test-proto ;; \
+		poon-web) $(MAKE) test-web ;; \
+		poon-tests) $(MAKE) test-integration ;; \
+		*) echo "Error: Unknown component $(COMPONENT)"; exit 1 ;; \
+	esac
 
 # Development shortcuts
 server: proto
