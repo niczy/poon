@@ -25,12 +25,12 @@ func NewMemoryBackend() *MemoryBackend {
 func (m *MemoryBackend) Put(ctx context.Context, key string, data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Make a copy of the data to avoid external modifications
 	dataCopy := make([]byte, len(data))
 	copy(dataCopy, data)
 	m.data[key] = dataCopy
-	
+
 	return nil
 }
 
@@ -38,12 +38,12 @@ func (m *MemoryBackend) Put(ctx context.Context, key string, data []byte) error 
 func (m *MemoryBackend) Get(ctx context.Context, key string) ([]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	data, exists := m.data[key]
 	if !exists {
 		return nil, fmt.Errorf("key not found: %s", key)
 	}
-	
+
 	// Return a copy to avoid external modifications
 	result := make([]byte, len(data))
 	copy(result, data)
@@ -54,7 +54,7 @@ func (m *MemoryBackend) Get(ctx context.Context, key string) ([]byte, error) {
 func (m *MemoryBackend) Exists(ctx context.Context, key string) (bool, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	_, exists := m.data[key]
 	return exists, nil
 }
@@ -63,11 +63,11 @@ func (m *MemoryBackend) Exists(ctx context.Context, key string) (bool, error) {
 func (m *MemoryBackend) Delete(ctx context.Context, key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if _, exists := m.data[key]; !exists {
 		return fmt.Errorf("key not found: %s", key)
 	}
-	
+
 	delete(m.data, key)
 	return nil
 }
@@ -76,14 +76,14 @@ func (m *MemoryBackend) Delete(ctx context.Context, key string) error {
 func (m *MemoryBackend) List(ctx context.Context, prefix string) ([]string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	var keys []string
 	for key := range m.data {
 		if strings.HasPrefix(key, prefix) {
 			keys = append(keys, key)
 		}
 	}
-	
+
 	return keys, nil
 }
 
@@ -93,7 +93,7 @@ func (m *MemoryBackend) Stream(ctx context.Context, key string) (io.ReadCloser, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &memoryReader{data: data}, nil
 }
 
@@ -101,7 +101,7 @@ func (m *MemoryBackend) Stream(ctx context.Context, key string) (io.ReadCloser, 
 func (m *MemoryBackend) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Clear all data
 	m.data = make(map[string][]byte)
 	return nil
@@ -111,7 +111,7 @@ func (m *MemoryBackend) Close() error {
 func (m *MemoryBackend) Size() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	return len(m.data)
 }
 
@@ -125,7 +125,7 @@ func (r *memoryReader) Read(p []byte) (int, error) {
 	if r.offset >= len(r.data) {
 		return 0, io.EOF
 	}
-	
+
 	n := copy(p, r.data[r.offset:])
 	r.offset += n
 	return n, nil

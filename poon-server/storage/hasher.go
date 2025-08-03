@@ -59,12 +59,12 @@ func (h *Hasher) ValidateHash(hash Hash) error {
 	if len(hash) != 64 {
 		return fmt.Errorf("invalid hash length: expected 64 characters, got %d", len(hash))
 	}
-	
+
 	_, err := hex.DecodeString(string(hash))
 	if err != nil {
 		return fmt.Errorf("invalid hash format: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -73,12 +73,12 @@ func (h *Hasher) VerifyObject(obj *Object) error {
 	if err := h.ValidateHash(obj.Hash); err != nil {
 		return fmt.Errorf("invalid object hash: %w", err)
 	}
-	
+
 	expectedHash := h.ComputeObjectHash(obj.Type, obj.Content)
 	if expectedHash != obj.Hash {
 		return fmt.Errorf("object hash mismatch: expected %s, got %s", expectedHash, obj.Hash)
 	}
-	
+
 	return nil
 }
 

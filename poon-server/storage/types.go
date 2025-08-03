@@ -45,12 +45,12 @@ type TreeObject struct {
 
 // CommitObject represents a version snapshot
 type CommitObject struct {
-	RootTree   Hash      `json:"root_tree"`
-	Parent     *Hash     `json:"parent,omitempty"`
-	Author     string    `json:"author"`
-	Message    string    `json:"message"`
-	Timestamp  time.Time `json:"timestamp"`
-	Version    int64     `json:"version"`
+	RootTree  Hash      `json:"root_tree"`
+	Parent    *Hash     `json:"parent,omitempty"`
+	Author    string    `json:"author"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+	Version   int64     `json:"version"`
 }
 
 // VersionInfo maps version numbers to commit hashes

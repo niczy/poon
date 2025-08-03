@@ -31,19 +31,19 @@ func (cs *ContentStore) Store(ctx context.Context, obj *Object) (Hash, error) {
 	if err := cs.hasher.VerifyObject(obj); err != nil {
 		return "", fmt.Errorf("object verification failed: %w", err)
 	}
-	
+
 	// Serialize object for storage
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal object: %w", err)
 	}
-	
+
 	// Store with hash as key
 	key := "objects/" + string(obj.Hash)
 	if err := cs.backend.Put(ctx, key, data); err != nil {
 		return "", fmt.Errorf("failed to store object: %w", err)
 	}
-	
+
 	return obj.Hash, nil
 }
 
@@ -52,23 +52,23 @@ func (cs *ContentStore) Get(ctx context.Context, hash Hash) (*Object, error) {
 	if err := cs.hasher.ValidateHash(hash); err != nil {
 		return nil, fmt.Errorf("invalid hash: %w", err)
 	}
-	
+
 	key := "objects/" + string(hash)
 	data, err := cs.backend.Get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("object not found: %w", err)
 	}
-	
+
 	var obj Object
 	if err := json.Unmarshal(data, &obj); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal object: %w", err)
 	}
-	
+
 	// Verify object integrity
 	if err := cs.hasher.VerifyObject(&obj); err != nil {
 		return nil, fmt.Errorf("stored object verification failed: %w", err)
 	}
-	
+
 	return &obj, nil
 }
 
@@ -77,7 +77,7 @@ func (cs *ContentStore) Exists(ctx context.Context, hash Hash) (bool, error) {
 	if err := cs.hasher.ValidateHash(hash); err != nil {
 		return false, fmt.Errorf("invalid hash: %w", err)
 	}
-	
+
 	key := "objects/" + string(hash)
 	return cs.backend.Exists(ctx, key)
 }
@@ -87,7 +87,7 @@ func (cs *ContentStore) Delete(ctx context.Context, hash Hash) error {
 	if err := cs.hasher.ValidateHash(hash); err != nil {
 		return fmt.Errorf("invalid hash: %w", err)
 	}
-	
+
 	key := "objects/" + string(hash)
 	return cs.backend.Delete(ctx, key)
 }
@@ -98,7 +98,7 @@ func (cs *ContentStore) List(ctx context.Context) ([]Hash, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list objects: %w", err)
 	}
-	
+
 	hashes := make([]Hash, 0, len(keys))
 	for _, key := range keys {
 		// Remove "objects/" prefix to get hash
@@ -107,7 +107,7 @@ func (cs *ContentStore) List(ctx context.Context) ([]Hash, error) {
 			hashes = append(hashes, Hash(hash))
 		}
 	}
-	
+
 	return hashes, nil
 }
 
@@ -141,11 +141,11 @@ func (cs *ContentStore) GetBlob(ctx context.Context, hash Hash) (*BlobObject, er
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if obj.Type != ObjectTypeBlob {
 		return nil, fmt.Errorf("object is not a blob: %s", obj.Type)
 	}
-	
+
 	return &BlobObject{Content: obj.Content}, nil
 }
 
@@ -155,16 +155,16 @@ func (cs *ContentStore) GetTree(ctx context.Context, hash Hash) (*TreeObject, er
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if obj.Type != ObjectTypeTree {
 		return nil, fmt.Errorf("object is not a tree: %s", obj.Type)
 	}
-	
+
 	var tree TreeObject
 	if err := json.Unmarshal(obj.Content, &tree); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal tree: %w", err)
 	}
-	
+
 	return &tree, nil
 }
 
@@ -174,15 +174,15 @@ func (cs *ContentStore) GetCommit(ctx context.Context, hash Hash) (*CommitObject
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if obj.Type != ObjectTypeCommit {
 		return nil, fmt.Errorf("object is not a commit: %s", obj.Type)
 	}
-	
+
 	var commit CommitObject
 	if err := json.Unmarshal(obj.Content, &commit); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal commit: %w", err)
 	}
-	
+
 	return &commit, nil
 }

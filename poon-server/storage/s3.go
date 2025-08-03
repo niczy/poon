@@ -9,12 +9,12 @@ import (
 
 // S3Config holds configuration for S3 backend
 type S3Config struct {
-	Region     string
-	Bucket     string
-	Prefix     string // Optional prefix for all keys
-	AccessKey  string
-	SecretKey  string
-	Endpoint   string // Optional for S3-compatible services
+	Region    string
+	Bucket    string
+	Prefix    string // Optional prefix for all keys
+	AccessKey string
+	SecretKey string
+	Endpoint  string // Optional for S3-compatible services
 }
 
 // S3Backend implements StorageBackend using AWS S3
@@ -32,14 +32,14 @@ func NewS3Backend(config *S3Config) (*S3Backend, error) {
 	if config.Bucket == "" {
 		return nil, fmt.Errorf("bucket name is required")
 	}
-	
+
 	// TODO: Initialize AWS SDK S3 client
 	// s3Client := s3.New(session.Must(session.NewSession(&aws.Config{
 	//     Region: aws.String(config.Region),
 	//     Credentials: credentials.NewStaticCredentials(
 	//         config.AccessKey, config.SecretKey, ""),
 	// })))
-	
+
 	return &S3Backend{
 		config: config,
 	}, nil
@@ -48,7 +48,7 @@ func NewS3Backend(config *S3Config) (*S3Backend, error) {
 // Put stores data at the given key in S3
 func (s3b *S3Backend) Put(ctx context.Context, key string, data []byte) error {
 	_ = s3b.buildKey(key) // fullKey would be used in actual implementation
-	
+
 	// TODO: Implement S3 PutObject
 	// _, err := s3b.client.PutObjectWithContext(ctx, &s3.PutObjectInput{
 	//     Bucket: aws.String(s3b.config.Bucket),
@@ -57,14 +57,14 @@ func (s3b *S3Backend) Put(ctx context.Context, key string, data []byte) error {
 	//     ServerSideEncryption: aws.String("AES256"),
 	// })
 	// return err
-	
+
 	return fmt.Errorf("S3 backend not yet implemented")
 }
 
 // Get retrieves data for the given key from S3
 func (s3b *S3Backend) Get(ctx context.Context, key string) ([]byte, error) {
 	_ = s3b.buildKey(key) // fullKey would be used in actual implementation
-	
+
 	// TODO: Implement S3 GetObject
 	// result, err := s3b.client.GetObjectWithContext(ctx, &s3.GetObjectInput{
 	//     Bucket: aws.String(s3b.config.Bucket),
@@ -74,16 +74,16 @@ func (s3b *S3Backend) Get(ctx context.Context, key string) ([]byte, error) {
 	//     return nil, err
 	// }
 	// defer result.Body.Close()
-	// 
+	//
 	// return ioutil.ReadAll(result.Body)
-	
+
 	return nil, fmt.Errorf("S3 backend not yet implemented")
 }
 
 // Exists checks if a key exists in S3
 func (s3b *S3Backend) Exists(ctx context.Context, key string) (bool, error) {
 	_ = s3b.buildKey(key) // fullKey would be used in actual implementation
-	
+
 	// TODO: Implement S3 HeadObject
 	// _, err := s3b.client.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 	//     Bucket: aws.String(s3b.config.Bucket),
@@ -98,28 +98,28 @@ func (s3b *S3Backend) Exists(ctx context.Context, key string) (bool, error) {
 	//     return false, err
 	// }
 	// return true, nil
-	
+
 	return false, fmt.Errorf("S3 backend not yet implemented")
 }
 
 // Delete removes data for the given key from S3
 func (s3b *S3Backend) Delete(ctx context.Context, key string) error {
 	_ = s3b.buildKey(key) // fullKey would be used in actual implementation
-	
+
 	// TODO: Implement S3 DeleteObject
 	// _, err := s3b.client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
 	//     Bucket: aws.String(s3b.config.Bucket),
 	//     Key:    aws.String(fullKey),
 	// })
 	// return err
-	
+
 	return fmt.Errorf("S3 backend not yet implemented")
 }
 
 // List returns all keys with the given prefix from S3
 func (s3b *S3Backend) List(ctx context.Context, prefix string) ([]string, error) {
 	_ = s3b.buildKey(prefix) // fullPrefix would be used in actual implementation
-	
+
 	// TODO: Implement S3 ListObjectsV2
 	// var keys []string
 	// err := s3b.client.ListObjectsV2PagesWithContext(ctx, &s3.ListObjectsV2Input{
@@ -134,14 +134,14 @@ func (s3b *S3Backend) List(ctx context.Context, prefix string) ([]string, error)
 	//     return !lastPage
 	// })
 	// return keys, err
-	
+
 	return nil, fmt.Errorf("S3 backend not yet implemented")
 }
 
 // Stream returns a reader for large objects from S3
 func (s3b *S3Backend) Stream(ctx context.Context, key string) (io.ReadCloser, error) {
 	_ = s3b.buildKey(key) // fullKey would be used in actual implementation
-	
+
 	// TODO: Implement S3 GetObject with streaming
 	// result, err := s3b.client.GetObjectWithContext(ctx, &s3.GetObjectInput{
 	//     Bucket: aws.String(s3b.config.Bucket),
@@ -151,7 +151,7 @@ func (s3b *S3Backend) Stream(ctx context.Context, key string) (io.ReadCloser, er
 	//     return nil, err
 	// }
 	// return result.Body, nil
-	
+
 	return nil, fmt.Errorf("S3 backend not yet implemented")
 }
 
@@ -188,8 +188,8 @@ const (
 
 // BackendConfig holds configuration for different backend types
 type BackendConfig struct {
-	Type   BackendType `json:"type"`
-	S3     *S3Config   `json:"s3,omitempty"`
+	Type BackendType `json:"type"`
+	S3   *S3Config   `json:"s3,omitempty"`
 }
 
 // NewStorageBackend creates a storage backend based on configuration
