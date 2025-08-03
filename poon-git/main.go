@@ -112,7 +112,7 @@ func (gs *GitServer) setupRoutes() *http.ServeMux {
 	// URLs like /workspace-uuid.git/info/refs
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		
+
 		// Handle workspace git endpoints
 		if strings.Contains(path, ".git/info/refs") {
 			gs.handleInfoRefs(w, r)
