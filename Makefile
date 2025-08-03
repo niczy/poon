@@ -1,6 +1,8 @@
 # Poon Monorepo System Makefile
 
 .PHONY: all build test clean install proto help ci-setup ci-test ci-build ci-test-component
+.PHONY: test-git test-server test-cli test-proto test-web test-integration
+.PHONY: test-storage test-merge
 
 # Default target
 all: proto build test
@@ -18,6 +20,16 @@ help:
 	@echo "make clean            - Clean build artifacts"
 	@echo "make start            - Start all services in background"
 	@echo "make stop             - Stop all services"
+	@echo ""
+	@echo "Individual component tests:"
+	@echo "make test-git         - Test poon-git component only"
+	@echo "make test-server      - Test poon-server component only"
+	@echo "make test-cli         - Test poon-cli component only"
+	@echo "make test-proto       - Test poon-proto component only"
+	@echo "make test-web         - Test poon-web component only"
+	@echo "make test-integration - Test poon-tests (integration) only"
+	@echo "make test-storage     - Test poon-server/storage package only"
+	@echo "make test-merge       - Test poon-server/merge package only"
 	@echo ""
 	@echo "CI/CD targets:"
 	@echo "make ci-setup         - Set up CI environment"
@@ -97,6 +109,48 @@ test: install-protoc-tools
 	cd ../poon-proto && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
 	cd ../poon-web && chmod +x scripts/run_test.sh && ./scripts/run_test.sh && \
 	cd ../poon-tests && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+# Individual component test targets
+test-git: install-protoc-tools
+	@echo "🧪 Running tests for poon-git only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-git && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+test-server: install-protoc-tools
+	@echo "🧪 Running tests for poon-server only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-server && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+test-cli: install-protoc-tools
+	@echo "🧪 Running tests for poon-cli only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-cli && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+test-proto: install-protoc-tools
+	@echo "🧪 Running tests for poon-proto only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-proto && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+test-web: install-protoc-tools
+	@echo "🧪 Running tests for poon-web only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-web && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+test-integration: install-protoc-tools
+	@echo "🧪 Running integration tests (poon-tests) only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-tests && chmod +x scripts/run_test.sh && ./scripts/run_test.sh
+
+# Sub-package test targets for poon-server
+test-storage:
+	@echo "🧪 Running tests for poon-server/storage package only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-server && go test -v ./storage
+
+test-merge:
+	@echo "🧪 Running tests for poon-server/merge package only..."
+	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
+	cd poon-server && go test -v ./merge
 
 # Clean build artifacts
 clean:
