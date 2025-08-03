@@ -131,7 +131,18 @@ test-cli: install-protoc-tools
 	@echo "🧪 Running tests for poon-cli only..."
 	@export PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/go/bin"; \
 	cd poon-cli && go mod download && go mod tidy && \
-	go build -o poon-cli ./cmd/poon && rm -f poon-cli && \
+	if [ -f "cmd/poon/main.go" ]; then \
+		echo "Building from cmd/poon directory"; \
+		go build -o poon-cli ./cmd/poon; \
+	elif [ -f "main.go" ]; then \
+		echo "Building from root directory"; \
+		go build -o poon-cli .; \
+	else \
+		echo "Error: Cannot determine build path"; \
+		ls -la; \
+		exit 1; \
+	fi && \
+	rm -f poon-cli && \
 	go test -v ./... && go vet ./... && \
 	if [ "$$(gofmt -l . | wc -l)" -gt 0 ]; then echo "❌ Code is not properly formatted"; gofmt -l .; exit 1; else echo "✅ Code is properly formatted"; fi
 
