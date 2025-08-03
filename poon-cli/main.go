@@ -102,12 +102,12 @@ func moveDirectoryContents(src, dst string) error {
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
-		
+
 		if err := os.Rename(srcPath, dstPath); err != nil {
 			return fmt.Errorf("failed to move %s to %s: %v", srcPath, dstPath, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -171,10 +171,10 @@ var startCmd = &cobra.Command{
 		// Clone the server-created git repository via poon-git
 		gitRemoteURL := createResp.RemoteUrl
 		fmt.Printf("Cloning workspace repository from server...\n")
-		
+
 		// Create a temporary directory for the clone
 		tempDir := ".poon-temp-clone"
-		
+
 		// Clone the repository
 		if err := runCommand("git", "clone", gitRemoteURL, tempDir); err != nil {
 			return fmt.Errorf("failed to clone workspace repository: %v", err)
