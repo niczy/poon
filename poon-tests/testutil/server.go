@@ -121,12 +121,15 @@ func (ts *TestServer) GetGrpcAddr() string {
 
 func (ts *TestServer) startGrpcServer(t *testing.T) {
 	serverPath := filepath.Join("..", "poon-server")
+	workspaceRoot := filepath.Join(ts.RepoRoot, "workspaces")
 	
 	ts.grpcCmd = exec.Command("go", "run", ".")
 	ts.grpcCmd.Dir = serverPath
 	ts.grpcCmd.Env = append(os.Environ(),
 		fmt.Sprintf("PORT=%d", ts.GrpcPort),
 		fmt.Sprintf("REPO_ROOT=%s", ts.RepoRoot),
+		fmt.Sprintf("WORKSPACE_ROOT=%s", workspaceRoot),
+		fmt.Sprintf("GIT_SERVER_PORT=%d", ts.HttpPort),
 	)
 	
 	if err := ts.grpcCmd.Start(); err != nil {
@@ -136,12 +139,14 @@ func (ts *TestServer) startGrpcServer(t *testing.T) {
 
 func (ts *TestServer) startHttpServer(t *testing.T) {
 	serverPath := filepath.Join("..", "poon-git")
+	workspaceRoot := filepath.Join(ts.RepoRoot, "workspaces")
 	
 	ts.httpCmd = exec.Command("go", "run", ".")
 	ts.httpCmd.Dir = serverPath
 	ts.httpCmd.Env = append(os.Environ(),
 		fmt.Sprintf("PORT=%d", ts.HttpPort),
 		fmt.Sprintf("GRPC_SERVER=localhost:%d", ts.GrpcPort),
+		fmt.Sprintf("WORKSPACE_ROOT=%s", workspaceRoot),
 	)
 	
 	if err := ts.httpCmd.Start(); err != nil {

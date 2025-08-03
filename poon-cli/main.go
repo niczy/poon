@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -90,6 +91,26 @@ func runCommand(name string, args ...string) error {
 	return cmd.Run()
 }
 
+func moveDirectoryContents(src, dst string) error {
+	// Read all entries from source directory
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %v", err)
+	}
+
+	// Move each entry
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+		
+		if err := os.Rename(srcPath, dstPath); err != nil {
+			return fmt.Errorf("failed to move %s to %s: %v", srcPath, dstPath, err)
+		}
+	}
+	
+	return nil
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "poon",
 	Short: "Poon CLI - Internet-scale monorepo client",
@@ -127,7 +148,7 @@ var startCmd = &cobra.Command{
 		// Create workspace on server
 		fmt.Printf("Creating workspace with initial path: %s\n", initialPath)
 		createReq := &pb.CreateWorkspaceRequest{
-			Name:         "",  // Server will generate UUID
+			Name:         "", // Server will generate UUID
 			TrackedPaths: []string{initialPath},
 			BaseBranch:   "main",
 			Metadata: map[string]string{
@@ -147,11 +168,26 @@ var startCmd = &cobra.Command{
 
 		fmt.Printf("✓ Server created workspace: %s\n", createResp.WorkspaceId)
 
-		// Initialize local git repository (clone will be implemented when poon-git is enhanced)
-		fmt.Printf("Initializing local git repository for workspace...\n")
+		// Clone the server-created git repository via poon-git
+		gitRemoteURL := createResp.RemoteUrl
+		fmt.Printf("Cloning workspace repository from server...\n")
 		
-		if err := runCommand("git", "init"); err != nil {
-			return fmt.Errorf("failed to initialize git repository: %v", err)
+		// Create a temporary directory for the clone
+		tempDir := ".poon-temp-clone"
+		
+		// Clone the repository
+		if err := runCommand("git", "clone", gitRemoteURL, tempDir); err != nil {
+			return fmt.Errorf("failed to clone workspace repository: %v", err)
+		}
+
+		// Move contents from temp directory to current directory
+		if err := moveDirectoryContents(tempDir, "."); err != nil {
+			return fmt.Errorf("failed to move cloned repository: %v", err)
+		}
+
+		// Clean up temp directory
+		if err := os.RemoveAll(tempDir); err != nil {
+			fmt.Printf("Warning: failed to clean up temporary directory: %v\n", err)
 		}
 
 		// Configure git identity
@@ -162,11 +198,7 @@ var startCmd = &cobra.Command{
 			return fmt.Errorf("failed to configure git user name: %v", err)
 		}
 
-		// Add git remote for future use
-		gitRemoteURL := createResp.RemoteUrl
-		if err := runCommand("git", "remote", "add", "origin", gitRemoteURL); err != nil {
-			return fmt.Errorf("failed to add git remote: %v", err)
-		}
+		fmt.Printf("✓ Successfully cloned workspace repository\n")
 
 		// Create poon config
 		config := &PoonConfig{
@@ -184,7 +216,7 @@ var startCmd = &cobra.Command{
 		// Add .poon/ to .gitignore if not already present
 		gitignoreContent := ".poon/\n"
 		gitignoreFile := ".gitignore"
-		
+
 		// Check if .gitignore exists and if .poon/ is already in it
 		needsGitignore := true
 		if existingContent, err := os.ReadFile(gitignoreFile); err == nil {
@@ -192,7 +224,7 @@ var startCmd = &cobra.Command{
 				needsGitignore = false
 			}
 		}
-		
+
 		if needsGitignore {
 			file, err := os.OpenFile(gitignoreFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {

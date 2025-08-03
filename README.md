@@ -15,22 +15,26 @@ The Poon system consists of six interconnected components:
 │   (Next.js) │    │   (CLI)     │    │ (Git Server)│
 └─────┬───────┘    └─────┬───────┘    └─────┬───────┘
       │                  │                  │
-      │            gRPC  │            HTTP  │
-      │                  │                  │
+      │            gRPC  │                  │ Git HTTP
+      │                  │                  │ Protocol
       └──────────────────┼──────────────────┘
-                         │
-                ┌────────▼────────┐
-                │  poon-server    │
-                │   (gRPC API)    │
-                └─────────────────┘
+                         │                  
+                ┌────────▼────────┐          
+                │  poon-server    │          
+                │   (gRPC API)    │          
+                │ ┌─────────────┐ │          
+                │ │  Workspace  │ │          
+                │ │   Storage   │ │          
+                │ └─────────────┘ │          
+                └─────────────────┘          
 ```
 
 ### Components
 
-- **🖥️ poon-server** - Core gRPC API server handling monorepo operations
+- **🖥️ poon-server** - Core gRPC API server with content-addressable storage and workspace management
 - **🌐 poon-web** - Modern Next.js web interface with gRPC-Web client
-- **⚡ poon-git** - Git-compatible HTTP server for standard Git workflows
-- **🛠️ poon-cli** - Command-line interface for developer workflows
+- **⚡ poon-git** - Git-compatible HTTP server providing Git protocol endpoints
+- **🛠️ poon-cli** - Command-line interface for workspace creation and developer workflows
 - **📦 poon-proto** - Protocol Buffer definitions and generated clients
 - **🧪 poon-tests** - Comprehensive integration test suite
 
@@ -86,6 +90,51 @@ The Poon system consists of six interconnected components:
    - 🔧 Git server: http://localhost:3000 (Git HTTP protocol)
    - 🚀 gRPC server: localhost:50051
 
+## 💻 CLI Workflow
+
+The Poon CLI provides a streamlined workflow for working with internet-scale monorepos:
+
+### Creating a Workspace
+
+```bash
+# Create a workspace and track initial path
+poon-cli start src/frontend
+
+# This will:
+# 1. Generate a UUID workspace name (e.g., "a1b2c3d4-e5f6-...")
+# 2. Create server-side git repository with tracked files
+# 3. Set up local workspace configuration
+# 4. Initialize local git repository connected to poon-git server
+```
+
+### Managing Tracked Paths
+
+```bash
+# Check workspace status
+poon-cli status
+
+# Track additional directories
+poon-cli track src/backend
+poon-cli track docs
+
+# Work with standard git workflow
+git add .
+git commit -m "Your changes"
+git push
+
+# Sync with latest monorepo state
+poon-cli sync
+```
+
+### Key Features
+
+- **UUID-based Workspace Names**: Server generates unique identifiers for workspaces
+- **Server-side Git Repositories**: Workspaces are created with full git history in temporary directories
+- **Selective Path Tracking**: Only download and track the directories you need
+- **Standard Git Workflow**: Use familiar git commands for version control
+- **Automatic Synchronization**: Keep your workspace in sync with the monorepo
+- **Temporary Storage**: Workspace git repositories are stored in temporary directories for security
+
 ## 🧪 Testing
 
 Each component includes comprehensive tests via standardized `run_test.sh` scripts:
@@ -114,12 +163,15 @@ The project includes automated CI/CD workflows:
 
 ### poon-server
 Core gRPC API server providing:
+- Content-addressable storage with SHA-256 hashing
+- Workspace creation with UUID generation in temporary directories
+- Git repository initialization and file copying
 - Directory listing and file reading
 - Patch merging and conflict resolution
 - Branch management operations
 - File history and commit tracking
 
-**Technology**: Go 1.23, gRPC, Protocol Buffers
+**Technology**: Go 1.23, gRPC, Protocol Buffers, Content-addressable storage
 
 ### poon-web  
 Modern web interface featuring:
@@ -133,17 +185,20 @@ Modern web interface featuring:
 ### poon-git
 Git-compatible HTTP server providing:
 - Standard Git protocol support (`git clone`, `git push`)
+- Git HTTP endpoints (`/info/refs`, `/git-upload-pack`)
+- REST API for directory and file access
 - Sparse checkout capabilities
-- Workspace management APIs
-- Direct integration with poon-server
+- Workspace repository serving
 
 **Technology**: Go 1.23, HTTP server, Git protocol
 
 ### poon-cli
 Command-line interface supporting:
-- Workspace initialization and management
+- Workspace creation with server-side UUID generation
+- Initial path tracking during workspace creation
 - Directory tracking from monorepo
-- Push/pull operations
+- Standard git workflow integration
+- Push/sync operations with monorepo
 - Direct gRPC server communication
 
 **Technology**: Go 1.23, Cobra CLI framework
@@ -158,10 +213,11 @@ Protocol Buffer definitions containing:
 
 ### poon-tests
 Integration test suite providing:
-- End-to-end workflow testing
+- End-to-end workspace creation workflow testing
 - Multi-component integration validation
-- CLI command validation
+- CLI command validation with new UUID-based workflow
 - Error handling and recovery testing
+- Server-side workspace creation verification
 
 **Technology**: Go 1.23, Testify
 
@@ -181,6 +237,7 @@ poon/
 ├── .github/workflows/     # GitHub Actions CI/CD
 ├── poon-server/          # gRPC API server
 │   ├── scripts/          # Test scripts
+│   ├── storage/          # Content-addressable storage implementation
 │   ├── main.go          # Server implementation
 │   └── server_test.go   # Unit tests
 ├── poon-web/            # Next.js web interface
@@ -194,6 +251,8 @@ poon/
 │   ├── monorepo.proto   # Service definitions
 │   └── gen/             # Generated clients
 └── poon-tests/          # Integration tests
+    ├── testutil/        # Test utilities and helpers
+    └── scripts/         # Test scripts
 ```
 
 ### Adding New Features

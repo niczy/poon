@@ -183,7 +183,7 @@ func (s *server) copyDirectoryToGitRepo(ctx context.Context, version int64, srcP
 	// Copy each entry
 	for _, entry := range entries {
 		entryPath := filepath.Join(srcPath, entry.Name)
-		
+
 		if entry.Type == storage.ObjectTypeTree {
 			// Recursively copy subdirectory
 			if err := s.copyDirectoryToGitRepo(ctx, version, entryPath, gitRepoPath); err != nil {
@@ -366,7 +366,7 @@ func (s *server) CreateWorkspace(ctx context.Context, req *pb.CreateWorkspaceReq
 
 	// Generate UUID for workspace
 	workspaceID := uuid.New().String()
-	
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -405,7 +405,11 @@ func (s *server) CreateWorkspace(ctx context.Context, req *pb.CreateWorkspaceReq
 	s.workspaces[workspaceID] = workspace
 
 	// Generate remote URL for poon-git server
-	remoteURL := fmt.Sprintf("http://localhost:3000/%s.git", workspaceID)
+	gitServerPort := os.Getenv("GIT_SERVER_PORT")
+	if gitServerPort == "" {
+		gitServerPort = "3000"
+	}
+	remoteURL := fmt.Sprintf("http://localhost:%s/%s.git", gitServerPort, workspaceID)
 
 	log.Printf("Successfully created workspace %s with git repo at %s", workspaceID, gitRepoPath)
 
@@ -554,12 +558,18 @@ func main() {
 
 	workspaceRoot := os.Getenv("WORKSPACE_ROOT")
 	if workspaceRoot == "" {
-		workspaceRoot = "./workspaces"
-	}
-
-	// Ensure workspace root directory exists
-	if err := os.MkdirAll(workspaceRoot, 0755); err != nil {
-		log.Fatalf("failed to create workspace root directory: %v", err)
+		// Use a temporary directory for workspaces
+		var err error
+		workspaceRoot, err = os.MkdirTemp("", "poon-workspaces-*")
+		if err != nil {
+			log.Fatalf("failed to create temporary workspace directory: %v", err)
+		}
+		log.Printf("Using temporary workspace directory: %s", workspaceRoot)
+	} else {
+		// Ensure workspace root directory exists if explicitly set
+		if err := os.MkdirAll(workspaceRoot, 0755); err != nil {
+			log.Fatalf("failed to create workspace root directory: %v", err)
+		}
 	}
 
 	// Initialize storage backend (in-memory for now)
