@@ -328,3 +328,132 @@ func TestRepository(t *testing.T) {
 		assert.Equal(t, commitHash, versionInfo.CommitHash)
 	})
 }
+
+func TestRepositoryPatchApplication(t *testing.T) {
+	backend := NewMemoryBackend()
+	defer backend.Close()
+
+	repo := NewRepository(backend)
+	defer repo.Close()
+
+	ctx := context.Background()
+
+	// Create initial repository state with a file
+	originalContent := []byte("line 1\nline 2\nline 3\n")
+	blobHash, err := repo.StoreBlob(ctx, originalContent)
+	require.NoError(t, err)
+
+	tree := &TreeObject{
+		Entries: []TreeEntry{
+			{
+				Name: "test.txt",
+				Hash: blobHash,
+				Type: ObjectTypeBlob,
+				Mode: 0644,
+				Size: int64(len(originalContent)),
+			},
+		},
+	}
+
+	treeHash, err := repo.StoreTree(ctx, tree)
+	require.NoError(t, err)
+
+	commit := &CommitObject{
+		RootTree:  treeHash,
+		Author:    "test@example.com",
+		Message:   "Initial commit",
+		Timestamp: time.Now(),
+		Version:   1,
+	}
+
+	commitHash, err := repo.StoreCommit(ctx, commit)
+	require.NoError(t, err)
+
+	// Create initial version
+	_, err = repo.CreateVersion(ctx, commitHash, "Initial commit")
+	require.NoError(t, err)
+
+	t.Run("ApplyPatch", func(t *testing.T) {
+		// Create a patch that modifies line 2
+		patchData := []byte(`--- test.txt
++++ test.txt
+@@ -1,3 +1,3 @@
+ line 1
+-line 2
++line 2 modified
+ line 3
+`)
+
+		// Apply patch
+		versionInfo, err := repo.ApplyPatch(ctx, patchData, "test@example.com", "Apply patch")
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), versionInfo.Version)
+
+		// Verify the file content was updated
+		newContent, err := repo.ReadFile(ctx, versionInfo.Version, "test.txt")
+		require.NoError(t, err)
+		expectedContent := []byte("line 1\nline 2 modified\nline 3\n")
+		assert.Equal(t, expectedContent, newContent)
+
+		// Verify original version is unchanged
+		originalContentRead, err := repo.ReadFile(ctx, 1, "test.txt")
+		require.NoError(t, err)
+		assert.Equal(t, originalContent, originalContentRead)
+	})
+
+	t.Run("ApplyPatchNewFile", func(t *testing.T) {
+		// Create a patch that adds a new file
+		patchData := []byte(`--- /dev/null
++++ newfile.txt
+@@ -0,0 +1,2 @@
++new line 1
++new line 2
+`)
+
+		// Apply patch
+		versionInfo, err := repo.ApplyPatch(ctx, patchData, "test@example.com", "Add new file")
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), versionInfo.Version)
+
+		// Verify the new file exists
+		newFileContent, err := repo.ReadFile(ctx, versionInfo.Version, "newfile.txt")
+		require.NoError(t, err)
+		expectedContent := []byte("new line 1\nnew line 2\n")
+		assert.Equal(t, expectedContent, newFileContent)
+
+		// Verify original file is still accessible
+		originalFileContent, err := repo.ReadFile(ctx, versionInfo.Version, "test.txt")
+		require.NoError(t, err)
+		expectedOriginalContent := []byte("line 1\nline 2 modified\nline 3\n")
+		assert.Equal(t, expectedOriginalContent, originalFileContent)
+	})
+
+	t.Run("ApplyPatchNestedDirectory", func(t *testing.T) {
+		// Create a patch that adds a file in a new directory
+		patchData := []byte(`--- /dev/null
++++ src/main.go
+@@ -0,0 +1,3 @@
++package main
++
++func main() {}
+`)
+
+		// Apply patch
+		versionInfo, err := repo.ApplyPatch(ctx, patchData, "test@example.com", "Add main.go")
+		require.NoError(t, err)
+		assert.Equal(t, int64(4), versionInfo.Version)
+
+		// Verify the nested file exists
+		nestedFileContent, err := repo.ReadFile(ctx, versionInfo.Version, "src/main.go")
+		require.NoError(t, err)
+		expectedContent := []byte("package main\n\nfunc main() {}\n")
+		assert.Equal(t, expectedContent, nestedFileContent)
+
+		// Verify directory listing
+		dirEntries, err := repo.ReadDirectory(ctx, versionInfo.Version, "src")
+		require.NoError(t, err)
+		assert.Len(t, dirEntries, 1)
+		assert.Equal(t, "main.go", dirEntries[0].Name)
+		assert.Equal(t, ObjectTypeBlob, dirEntries[0].Type)
+	})
+}
